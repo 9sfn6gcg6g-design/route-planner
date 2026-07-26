@@ -38,6 +38,9 @@ interface OverpassElement {
 }
 
 export function parseOverpassResponse(body: unknown): OsmWay[] {
+  if (typeof body !== 'object' || body === null) {
+    throw new Error('Overpass response has no elements array')
+  }
   const elements = (body as { elements?: unknown }).elements
   if (!Array.isArray(elements)) {
     throw new Error('Overpass response has no elements array')

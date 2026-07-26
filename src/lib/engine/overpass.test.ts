@@ -60,4 +60,8 @@ describe('parseOverpassResponse', () => {
   it('throws on a body with no elements array', () => {
     expect(() => parseOverpassResponse({ remark: 'timeout' })).toThrow(/elements/)
   })
+
+  it('throws a descriptive error instead of a raw TypeError on a null body', () => {
+    expect(() => parseOverpassResponse(null)).toThrow(/elements/)
+  })
 })

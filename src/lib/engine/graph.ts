@@ -3,15 +3,30 @@ import { pathLengthMeters } from './geo'
 import { quietnessFor, surfaceKindFor } from './signals'
 
 /**
- * A junction is any node used by more than one way (crossing or shared
- * endpoint). Each way is split at interior junction nodes so every edge
- * runs junction-to-junction (or way-end-to-way-end) with no crossings
- * inside it — which is exactly what "uninterrupted stretch" means to the
- * segment finder.
+ * A "junction node" here is any node used by more than one way (crossing or
+ * shared endpoint), and every way is split at its interior junction nodes.
+ * This is a conservative over-split, not a claim about real branching: OSM
+ * commonly breaks a way into multiple ways at a node where only tag
+ * metadata changes — a name, speed limit, or surface change — with no
+ * actual fork in the road. So `junctionNodeIds` mixes true crossings with
+ * these metadata splices, and no edge boundary should be read as "a road
+ * meets another road here" on its own.
+ *
+ * `nodeDegree` disambiguates the two: it counts, per node, how many emitted
+ * edges touch it (each edge contributes +1 to both its endpoints). A true
+ * crossing has edge-degree >= 3 (at least three road-ends meet); a splice
+ * has edge-degree exactly 2 (one edge ends, the next begins, same
+ * direction of travel). Code that measures an "uninterrupted stretch" must
+ * walk through degree-2 nodes and keep accumulating length — only a
+ * degree >= 3 node is a real interruption — and junction-density metrics
+ * (e.g. junctions per km) must count only degree >= 3 nodes, not every
+ * member of `junctionNodeIds`.
  */
 export function buildGraph(ways: OsmWay[]): RunGraph {
+  const runnableWays = ways.filter((way) => Boolean(way.tags.highway))
+
   const usage = new Map<number, number>()
-  for (const way of ways) {
+  for (const way of runnableWays) {
     const seen = new Set<number>()
     for (const nodeId of way.nodeIds) {
       if (seen.has(nodeId)) continue // self-revisits don't make a junction
@@ -25,7 +40,7 @@ export function buildGraph(ways: OsmWay[]): RunGraph {
   }
 
   const edges: RunEdge[] = []
-  for (const way of ways) {
+  for (const way of runnableWays) {
     const quietness = quietnessFor(way.tags)
     const surface = surfaceKindFor(way.tags)
     const highway = way.tags.highway
@@ -48,5 +63,11 @@ export function buildGraph(ways: OsmWay[]): RunGraph {
     }
   }
 
-  return { edges, junctionNodeIds }
+  const nodeDegree = new Map<number, number>()
+  for (const edge of edges) {
+    nodeDegree.set(edge.fromNodeId, (nodeDegree.get(edge.fromNodeId) ?? 0) + 1)
+    nodeDegree.set(edge.toNodeId, (nodeDegree.get(edge.toNodeId) ?? 0) + 1)
+  }
+
+  return { edges, junctionNodeIds, nodeDegree }
 }

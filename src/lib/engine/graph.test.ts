@@ -38,6 +38,15 @@ describe('buildGraph', () => {
     expect(boundaries).toContainEqual([20, 32])
   })
 
+  it('gives a true crossing node edge-degree 4 and a leaf node edge-degree 1', () => {
+    // way 1: 10 - 20 - 12 ; way 2: 30 - 20 - 32 (junction at 20)
+    const a = way(1, [10, 20, 12], [51.45, 51.451, 51.452])
+    const b = way(2, [30, 20, 32], [51.46, 51.451, 51.462])
+    const graph = buildGraph([a, b])
+    expect(graph.nodeDegree.get(20)).toBe(4)
+    expect(graph.nodeDegree.get(10)).toBe(1)
+  })
+
   it('does not split when ways merely touch end-to-end', () => {
     // way 1 ends at 20; way 2 starts at 20 — shared endpoint is a junction node,
     // but each way still yields one edge (no interior split point).
@@ -46,6 +55,34 @@ describe('buildGraph', () => {
     const graph = buildGraph([a, b])
     expect(graph.edges).toHaveLength(2)
     expect(graph.junctionNodeIds.has(20)).toBe(true)
+  })
+
+  it('marks an end-to-end touch as a degree-2 splice even though it is a junction node', () => {
+    // way 1 ends at 20; way 2 starts at 20 — a junction node by the
+    // "used by more than one way" rule, but structurally just a splice:
+    // exactly one edge arrives and one edge leaves, so its edge-degree is 2,
+    // not the >=3 that a real crossing would have.
+    const a = way(1, [10, 11, 20], [51.45, 51.451, 51.452])
+    const b = way(2, [20, 21, 22], [51.452, 51.453, 51.454])
+    const graph = buildGraph([a, b])
+    expect(graph.junctionNodeIds.has(20)).toBe(true)
+    expect(graph.nodeDegree.get(20)).toBe(2)
+  })
+
+  it('skips ways without a highway tag, contributing no edges or node degree', () => {
+    const untagged: OsmWay = {
+      id: 99,
+      tags: {},
+      nodeIds: [10, 11],
+      points: [
+        { lat: 51.45, lon: -2.58 },
+        { lat: 51.451, lon: -2.5801 },
+      ],
+    }
+    const graph = buildGraph([untagged])
+    expect(graph.edges).toHaveLength(0)
+    expect(graph.nodeDegree.size).toBe(0)
+    expect(graph.junctionNodeIds.size).toBe(0)
   })
 
   it('computes edge length from geometry and stamps signals from tags', () => {
@@ -69,5 +106,13 @@ describe('buildGraph', () => {
       expect(edge.quietness).toBeLessThanOrEqual(1)
     }
     expect(graph.junctionNodeIds.size).toBeGreaterThan(0)
+    // Real OSM data over-splits conservatively: some junction nodes are
+    // true crossings, but plenty are degree-2 splices (a way broken at a
+    // name/speed-limit change with no actual fork). Both must be present.
+    expect(graph.nodeDegree.size).toBeGreaterThan(0)
+    const spliceNodes = [...graph.junctionNodeIds].filter(
+      (id) => graph.nodeDegree.get(id) === 2,
+    )
+    expect(spliceNodes.length).toBeGreaterThan(0)
   })
 })

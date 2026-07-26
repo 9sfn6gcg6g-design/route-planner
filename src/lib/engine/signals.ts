@@ -1,10 +1,12 @@
 import type { SurfaceKind } from './types'
 
 /**
- * Road-class proxy for quietness (0–1, 1 = quietest) — the MVP signal per
- * decision #6/#7 in docs/domain.md. Residential is pinned to 0.7, the
- * intervals profile's minQuietness floor, so intervals accept residential
- * streets and everything busier fails.
+ * Road-class proxy for quietness (0–1, 1 = quietest) — the MVP signal
+ * approach per decisions #6/#7 in docs/domain.md (own scored graph now,
+ * pluggable signals so richer sources like street imagery can slot in
+ * later). The 0.7 pin for residential is grounded in the intervals
+ * profile's `minQuietness` floor (src/lib/domain/profiles.ts), so
+ * intervals accept residential streets and everything busier fails.
  */
 const QUIETNESS_BY_HIGHWAY: Record<string, number> = {
   footway: 0.9,
@@ -59,7 +61,7 @@ const UNPAVED_SURFACES = new Set([
   'pebblestone',
 ])
 
-/** Highway classes that are near-always paved (unpaved) when surface is untagged. */
+/** Highway classes that are near-always paved when surface is untagged. */
 const PAVED_BY_DEFAULT = new Set([
   'residential',
   'living_street',
@@ -74,6 +76,7 @@ const PAVED_BY_DEFAULT = new Set([
   'footway',
 ])
 
+/** Highway classes that are near-always unpaved when surface is untagged. */
 const UNPAVED_BY_DEFAULT = new Set(['path', 'track'])
 
 export function surfaceKindFor(tags: Record<string, string>): SurfaceKind {

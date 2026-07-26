@@ -18,6 +18,11 @@ describe('chunk', () => {
   it('returns no batches for an empty list', () => {
     expect(chunk([], 100)).toEqual([])
   })
+
+  it('throws for a non-positive size instead of looping forever', () => {
+    expect(() => chunk([1], 0)).toThrow(/size/)
+    expect(() => chunk([1], -1)).toThrow(/size/)
+  })
 })
 
 describe('buildElevationUrl', () => {
@@ -43,6 +48,10 @@ describe('parseElevationResponse', () => {
 
   it('throws when the body has no elevation array', () => {
     expect(() => parseElevationResponse({ error: true }, 2)).toThrow(/elevation/)
+  })
+
+  it('throws a descriptive error instead of a raw TypeError on a null body', () => {
+    expect(() => parseElevationResponse(null, 2)).toThrow(/elevation/)
   })
 })
 

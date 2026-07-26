@@ -6,6 +6,9 @@ const ELEVATION_ENDPOINT = 'https://api.open-meteo.com/v1/elevation'
 const MAX_COORDS_PER_REQUEST = 100
 
 export function chunk<T>(items: T[], size: number): T[][] {
+  if (!Number.isInteger(size) || size <= 0) {
+    throw new Error(`chunk size must be a positive integer, got ${size}`)
+  }
   const batches: T[][] = []
   for (let i = 0; i < items.length; i += size) {
     batches.push(items.slice(i, i + size))
@@ -20,6 +23,9 @@ export function buildElevationUrl(points: LatLon[]): string {
 }
 
 export function parseElevationResponse(body: unknown, expectedCount: number): number[] {
+  if (typeof body !== 'object' || body === null) {
+    throw new Error('Open-Meteo response has no elevation array')
+  }
   const elevation = (body as { elevation?: unknown }).elevation
   if (!Array.isArray(elevation) || elevation.some((e) => typeof e !== 'number')) {
     throw new Error('Open-Meteo response has no elevation array')
