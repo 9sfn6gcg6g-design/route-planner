@@ -29,3 +29,7 @@ everything.
 8. Accounts ARE in the MVP and hold exactly three things: saved routes, saved start points, post-run route feedback (ground truth for segment quality). Clerk + Neon via Vercel Marketplace.
 9. Built for Liam first (UK-first, free tiers), architected to scale into a shippable product.
 10. The compiler enforces structural invariants — distances (`distanceMeters`, `tempoMeters`, `repMeters`, `hillMeters`) must be finite positive numbers, `reps` must be an integer >= 1, and an explicit `connectorMeters` override must be finite and positive — by throwing. This is not the place for friendly, user-facing validation messages or form constraints (min/max fields, helpful copy); that belongs at the form/API boundary that sits in front of the compiler. The compiler's contract is: garbage in throws, never silently produces a corrupt plan.
+
+---
+
+Map data in test fixtures © OpenStreetMap contributors, licensed under ODbL (openstreetmap.org/copyright).
