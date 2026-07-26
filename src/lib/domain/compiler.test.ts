@@ -84,3 +84,46 @@ describe('compileSession', () => {
     expect(plan.phases[1].requirements?.minAvgGradientPercent).toBe(4)
   })
 })
+
+describe('input validation', () => {
+  it('throws when intervals reps is 0', () => {
+    expect(() =>
+      workMetersFor({ type: 'intervals', reps: 0, repMeters: 800, recovery: 'jog' }),
+    ).toThrow(/reps/)
+  })
+
+  it('throws when distanceMeters is negative', () => {
+    expect(() => compileSession({ type: 'easy', distanceMeters: -100 })).toThrow(
+      /distanceMeters/,
+    )
+  })
+
+  it('throws when repMeters is NaN', () => {
+    expect(() =>
+      compileSession({ type: 'intervals', reps: 6, repMeters: NaN, recovery: 'jog' }),
+    ).toThrow(/repMeters/)
+  })
+
+  it('throws when an explicit connectorMeters override is zero', () => {
+    expect(() =>
+      compileSession(
+        { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' },
+        { connectorMeters: 0 },
+      ),
+    ).toThrow(/connectorMeters/)
+  })
+
+  it('compiles a single rep with no recovery distance (boundary case)', () => {
+    expect(
+      workMetersFor({ type: 'intervals', reps: 1, repMeters: 800, recovery: 'jog' }),
+    ).toBe(800)
+
+    const plan = compileSession({
+      type: 'intervals',
+      reps: 1,
+      repMeters: 800,
+      recovery: 'jog',
+    })
+    expect(plan.phases[1].targetMeters).toBe(800)
+  })
+})
