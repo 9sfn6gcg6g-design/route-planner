@@ -87,6 +87,26 @@ implementation.
   use your own model name, not that one.)
 - Keep PRs to one plan slice. Small and reviewable beats complete.
 
+### Every PR needs a description and a scorecard
+
+This is not optional, and it applies to agent-opened PRs too. Use
+`.github/pull_request_template.md` and fill in **all** of it:
+
+1. **Scorecard** — three ratings, so the other person can prioritise without
+   reading the diff: **Impact** (how far the change reaches), **Breaking
+   changes** (what stops working), **Review priority** (how soon). The
+   template explains each rating; give a one-sentence reason for the scores.
+2. **What changed and why** — plain English, one bullet per change. Say what
+   problem it solves, not just what you did. Assume the reader has not seen the
+   code and does not have your context.
+3. **Anything the reviewer must do** — migrations, config, manual steps,
+   anything you couldn't finish. If there's nothing, write "Nothing".
+
+Be honest in the scoring. Marking a 🔴 Major change as 🟢 None is how the other
+person loses a day. When a change breaks something, spell out what breaks and
+what they need to do about it — especially if they have a branch in flight
+touching the same files.
+
 ## Knowing what the other person is working on
 
 `docs/superpowers/plans/` holds the **plans of record**. Each has a status
