@@ -1,5 +1,12 @@
 # Foundation: Scaffold + Domain Model + Session Compiler — Implementation Plan
 
+**Status:** complete (landed 2026-07-26) · **Owner:** Liam
+
+> Step checkboxes below were never ticked during execution, but the work
+> shipped — `src/lib/domain/` and its tests are on `main`. Trust `git log` and
+> the code, not the boxes. On future plans, tick as you land each step and
+> update this header when you claim or finish a plan (see `AGENTS.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stand up the route-planner Next.js project and implement the fully-tested domain core that compiles a runner's session (e.g. "6×800m intervals") into a phased plan with terrain requirements.

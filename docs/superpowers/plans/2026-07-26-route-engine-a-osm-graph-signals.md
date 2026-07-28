@@ -1,5 +1,13 @@
 # Route Engine A: OSM Ingestion, Graph, and Signals — Implementation Plan
 
+**Status:** complete (landed 2026-07-26) · **Owner:** Liam
+
+> Step checkboxes below were never ticked during execution, but the work
+> shipped — `overpass.ts`, `graph.ts`, `signals.ts`, `elevation.ts` and their
+> tests are on `main`. Trust `git log` and the code, not the boxes. On future
+> plans, tick as you land each step and update this header when you claim or
+> finish a plan (see `AGENTS.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the data layer of the route engine: fetch runnable OSM ways around a point, build a junction-split local graph, and annotate every edge with the signals the segment scorer needs (quietness, surface, length, gradient).

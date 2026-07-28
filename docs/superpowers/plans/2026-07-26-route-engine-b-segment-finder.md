@@ -1,5 +1,16 @@
 # Route Engine B: Work-Segment Finder — Implementation Plan
 
+**Status:** complete (landed 2026-07-28) · **Owner:** Liam
+
+> Step checkboxes below were never ticked during execution, but the work
+> shipped — `chains.ts`, `resample.ts`, `evaluate.ts`, `finder.ts` and their
+> tests are on `main`. Trust `git log` and the code, not the boxes. On future
+> plans, tick as you land each step and update this header when you claim or
+> finish a plan (see `AGENTS.md`).
+>
+> **Deferred out of this plan:** sub-chain windowing (finding a qualifying 800m
+> window inside a longer chain whose whole-chain gradient fails). Still open.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Given a `RunGraph`, a start point, and a work phase's `TerrainRequirements`, find and rank real uninterrupted stretches where the runner can do the session — the core product capability.
