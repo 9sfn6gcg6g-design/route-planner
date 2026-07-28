@@ -36,3 +36,18 @@ export interface RunGraph {
    */
   nodeDegree: Map<number, number>
 }
+
+/**
+ * A maximal uninterrupted stretch: graph edges merged through degree-2
+ * splice nodes, terminating only at true crossings (degree >= 3), dead
+ * ends (degree 1), or — for isolated loops like a park circuit — closing
+ * back on the start (isCycle).
+ */
+export interface Chain {
+  edges: RunEdge[]
+  points: LatLon[]
+  lengthMeters: number
+  startNodeId: number
+  endNodeId: number
+  isCycle: boolean
+}
