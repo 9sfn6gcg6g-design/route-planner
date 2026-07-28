@@ -20,6 +20,7 @@ export interface WorkSegment {
   points: LatLon[]
   lengthMeters: number
   distanceFromStartMeters: number
+  /** Chain ends coincide; may still hang off a crossing. */
   isCycle: boolean
   minQuietness: number
   avgAbsGradientPercent: number

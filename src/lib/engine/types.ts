@@ -40,8 +40,10 @@ export interface RunGraph {
 /**
  * A maximal uninterrupted stretch: graph edges merged through degree-2
  * splice nodes, terminating only at true crossings (degree >= 3), dead
- * ends (degree 1), or — for isolated loops like a park circuit — closing
- * back on the start (isCycle).
+ * ends (degree 1), or — when the chain closes back on the start node
+ * (isCycle), like a park circuit. isCycle means the ends coincide; the loop
+ * may still hang off a crossing, so do not read it as isolation from the
+ * network.
  */
 export interface Chain {
   edges: RunEdge[]
