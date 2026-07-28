@@ -42,3 +42,6 @@ next-env.d.ts
 
 # superpowers
 .superpowers/
+
+# claude — shared config is committed; personal overrides are not
+.claude/settings.local.json
