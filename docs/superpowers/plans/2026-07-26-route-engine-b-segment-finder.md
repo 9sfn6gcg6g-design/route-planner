@@ -27,7 +27,7 @@
 - Elevation frugality: the finder must not call the elevation sampler for chains that already fail distance or static checks — tests enforce this with call-recording fakes.
 - Engine → domain imports are **type-only** (`import type { TerrainRequirements } from '@/lib/domain/types'`); never import domain functions, never import engine code from domain.
 - Sub-chain windowing (finding a qualifying 800m window inside a 2km chain whose average gradient fails) is OUT of this plan — whole-chain evaluation only; note it as a future refinement where indicated.
-- Commit messages: conventional commits ending with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+- Commit messages: conventional commits ending with a `Co-Authored-By:` trailer naming the model that did the work — see `AGENTS.md`.
 
 ---
 
@@ -246,7 +246,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: chain builder merging edges through degree-2 splices
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -373,7 +373,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: polyline resampling for stable elevation sampling
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -619,7 +619,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: chain evaluation against terrain requirements with ranking score
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -876,7 +876,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: work-segment finder with prefiltered elevation sampling and ranking
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```

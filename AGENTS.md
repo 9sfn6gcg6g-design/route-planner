@@ -83,8 +83,9 @@ implementation.
   ```
 
   Human authorship comes from the git author field; the trailer records which
-  model assisted. (Plans written before this file hardcode `Claude Fable 5` —
-  use your own model name, not that one.)
+  model assisted. Plan files show this as `Claude <your model>` — substitute
+  your own model name; never copy a placeholder or another model's name
+  verbatim.
 - Keep PRs to one plan slice. Small and reviewable beats complete.
 
 ### Every PR needs a description and a scorecard

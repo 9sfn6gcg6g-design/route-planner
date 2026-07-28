@@ -26,7 +26,7 @@
 - Build-time picks (already decided, do not re-litigate): elevation = Open-Meteo Elevation API; connector routing = Openrouteservice free tier. Neither is used in THIS plan — they are for the route-engine plan.
 - Clerk/Neon are provisioned via Vercel Marketplace in a LATER plan — do not npm-install any auth/db SDK in this plan.
 - No `any` types; `npm run lint` and `npm test` must pass at every commit.
-- Commit messages: conventional commits, ending with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+- Commit messages: conventional commits ending with a `Co-Authored-By:` trailer naming the model that did the work — see `AGENTS.md`.
 
 ---
 
@@ -104,7 +104,7 @@ git add -A
 git commit -m "$(cat <<'EOF'
 chore: scaffold Next.js app with Vitest
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -344,7 +344,7 @@ git add -A
 git commit -m "$(cat <<'EOF'
 feat: domain types and terrain-requirement profiles
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -546,7 +546,7 @@ git add -A
 git commit -m "$(cat <<'EOF'
 feat: session compiler producing phased plans with terrain requirements
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -606,7 +606,7 @@ git add docs/domain.md docs/superpowers
 git commit -m "$(cat <<'EOF'
 docs: domain model and decisions of record
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
