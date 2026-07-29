@@ -52,6 +52,7 @@ These hold at **every commit**, not just at the end of a branch:
 ```
 src/lib/domain/   ← session model + compiler. Knows nothing about maps or OSM.
 src/lib/engine/   ← OSM, graph, signals, elevation, segment finding.
+src/lib/planner/  ← composition root: session → requirements → segments.
 src/app/          ← Next.js routes and UI.
 ```
 
@@ -59,6 +60,10 @@ src/app/          ← Next.js routes and UI.
   `import type { TerrainRequirements } from '@/lib/domain/types'`.
 - `engine` must never import a domain *function*.
 - `domain` must never import from `engine` at all.
+- `planner` is the **one** place allowed to import *functions* from both `domain`
+  and `engine`; it composes them (`compileSession` → work `TerrainRequirements` →
+  `findWorkSegments`) behind injected I/O. Keep composition here so `domain` and
+  `engine` stay decoupled — do not reach across them anywhere else.
 - New quality inputs arrive as **signals** (decision 7) and must slot into the
   scorer without rewriting it. If a change forces a scorer rewrite, stop and
   raise it rather than reshaping the interface unilaterally.

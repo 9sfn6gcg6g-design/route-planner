@@ -89,10 +89,10 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 
 ## Slice 4 — Orchestrator (`src/lib/planner/`)
 
-- [ ] `planRoute` + test: `compileSession` → work-phase `TerrainRequirements` →
+- [x] `planRoute` + test: `compileSession` → work-phase `TerrainRequirements` →
       `findWorkSegments` with **injected** `fetchWays` and `sampleElevations`
       (fixtures; no network). Returns ranked `WorkSegment[]` + session metadata.
-- [ ] Add the one-line composition-layer note to `AGENTS.md` Layering (see Global
+- [x] Add the one-line composition-layer note to `AGENTS.md` Layering (see Global
       Constraints).
 
 ## Slice 5 — Map preview + results (integration)
