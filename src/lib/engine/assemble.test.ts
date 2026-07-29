@@ -35,6 +35,8 @@ describe('buildWorkGeometry', () => {
     // odd passes end at the far end
     expect(work.points[work.points.length - 1]).toEqual(stretch[2])
     expect(pathLengthMeters(work.points)).toBeCloseTo(stretchLength * 7, 0)
+    // detect apex/seam duplication regressions: 7 passes of 3-point stretch with 2-point joins = 15 points
+    expect(work.points.length).toBe(15)
   })
 
   it('even passes return to the near end', () => {
@@ -53,6 +55,8 @@ describe('buildWorkGeometry', () => {
     expect(work.points[0]).toEqual(ring[0])
     expect(work.points[work.points.length - 1]).toEqual(ring[0])
     expect(pathLengthMeters(work.points)).toBeCloseTo(ringLength * 3, 0)
+    // detect apex/seam duplication regressions: 3 laps of 5-point ring with 4-point joins = 13 points
+    expect(work.points.length).toBe(13)
   })
 
   it('always makes at least one pass and rejects nonsense targets', () => {
@@ -94,6 +98,18 @@ describe('assembleRoute', () => {
     expect(route.phases[1].startIndex).toBe(route.phases[0].endIndex + 1)
     expect(route.phases[2].startIndex).toBe(route.phases[1].endIndex + 1)
     expect(route.phases[2].endIndex).toBe(route.points.length - 1)
+    // verify total point count equals sum of input array lengths (detects missing push mutations)
+    expect(route.points.length).toBe(warmup.points.length + work.points.length + cooldown.points.length)
+    // verify content at phase boundaries
+    expect(route.points[route.phases[0].startIndex]).toEqual(warmup.points[0])
+    expect(route.points[route.phases[0].endIndex]).toEqual(warmup.points[warmup.points.length - 1])
+    expect(route.points[route.phases[1].startIndex]).toEqual(work.points[0])
+    expect(route.points[route.phases[1].endIndex]).toEqual(work.points[work.points.length - 1])
+    expect(route.points[route.phases[2].startIndex]).toEqual(cooldown.points[0])
+    expect(route.points[route.phases[2].endIndex]).toEqual(cooldown.points[cooldown.points.length - 1])
+    // verify duplicated join points between phases: warmup end == work start, work end == cooldown start
+    expect(route.points[route.phases[0].endIndex]).toEqual(route.points[route.phases[1].startIndex])
+    expect(route.points[route.phases[1].endIndex]).toEqual(route.points[route.phases[2].startIndex])
   })
 })
 
