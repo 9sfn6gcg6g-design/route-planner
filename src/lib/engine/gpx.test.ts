@@ -47,4 +47,28 @@ describe('toGpx', () => {
   it('escapes XML in names', () => {
     expect(toGpx(route, 'Reps & <hills>')).toContain('<name>Reps &amp; &lt;hills&gt;</name>')
   })
+
+  it('positions waypoints at correct work phase span boundaries', () => {
+    const complexRoute: AssembledRoute = {
+      points: [
+        { lat: 50.0, lon: -1.0 },
+        { lat: 50.1, lon: -1.1 },
+        { lat: 50.2, lon: -1.2 },
+        { lat: 50.3, lon: -1.3 },
+        { lat: 50.4, lon: -1.4 },
+        { lat: 50.5, lon: -1.5 },
+      ],
+      totalMeters: 6000,
+      phases: [
+        { kind: 'warmup', startIndex: 0, endIndex: 1, meters: 1000 },
+        { kind: 'work', startIndex: 2, endIndex: 4, meters: 4000 },
+        { kind: 'cooldown', startIndex: 5, endIndex: 5, meters: 1000 },
+      ],
+    }
+    const gpx = toGpx(complexRoute, 'Test route')
+    // Work start waypoint must have the exact coordinates of points[2]
+    expect(gpx).toContain('<wpt lat="50.2" lon="-1.2"><name>Work start</name></wpt>')
+    // Work end waypoint must have the exact coordinates of points[4]
+    expect(gpx).toContain('<wpt lat="50.4" lon="-1.4"><name>Work end</name></wpt>')
+  })
 })
