@@ -1,11 +1,11 @@
-# v1 to GitLab Pages: Client-Only Route Planner — Implementation Plan
+# v1 to GitHub Pages: Client-Only Route Planner — Implementation Plan
 
 **Status:** in progress · **Owner:** stuurps
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax — tick as you land each one and update this header when you claim or finish the plan (see `AGENTS.md`).
 
 **Goal:** Ship the first user-facing product — a runner enters a session, gets a
-quality route on a map, and downloads a GPX — and put it live on **GitLab Pages** as a
+quality route on a map, and downloads a GPX — and put it live on **GitHub Pages** as a
 purely static, client-only site. This wires the already-built engine
 (`src/lib/domain/` + `src/lib/engine/`) into a real UI for the first time.
 
@@ -22,7 +22,8 @@ segment(s)** → single continuous GPX download. Account-less (decision 8 deferr
 (decision 2).
 
 **Architecture:** Everything runs in the browser. `next.config.ts` switches to
-`output: 'export'`; `.gitlab-ci.yml` builds and publishes the export to Pages. A new
+`output: 'export'`; a GitHub Actions workflow builds and publishes the export to GitHub
+Pages. A new
 **composition layer** `src/lib/planner/` is the one place that imports *both* `domain`
 (`compileSession`) and `engine` (`findWorkSegments`) — see the layering note below. A
 new pure `src/lib/export/gpx.ts` turns segment geometry into a GPX track. The UI
@@ -60,19 +61,26 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 ## Slice 0 — Docs (this PR)
 
 - [x] Amend `docs/domain.md` decision 8 (accounts deferred post-v1) and add decision 11
-      (client-only static GitLab Pages v1; work-segments only; ORS/loop out of v1).
+      (client-only static GitHub Pages v1; work-segments only; ORS/loop out of v1).
 - [x] Add this plan of record and claim it (`Status: in progress`).
 
-## Slice 1 — Static export + GitLab Pages pipeline
+## Slice 1 — Static export + GitHub Pages pipeline
 
-- [ ] `next.config.ts`: `output: 'export'`, `images: { unoptimized: true }`,
-      `trailingSlash: true`, env-driven `basePath`/`assetPrefix` for the project
-      sub-path. **Confirm the final Pages path** before hard-coding.
+Target: project Pages at `https://9sfn6gcg6g-design.github.io/route-planner/`, so
+`basePath = /route-planner`. (The user first said "GitLab Pages" but meant GitHub Pages;
+the repo is already on GitHub.)
+
+- [x] `next.config.ts`: `output: 'export'`, `images: { unoptimized: true }`,
+      `trailingSlash: true`, env-driven `basePath` (`process.env.BASE_PATH`, empty
+      locally so `npm run dev` works, `/route-planner` in CI). Add `public/.nojekyll`.
 - [x] Replace the create-next-app `src/app/page.tsx` with a minimal real shell; remove
       the `next/image` usage so export is clean. *(Done in Slice 3.)*
-- [ ] Add `.gitlab-ci.yml` (mirror `.github/workflows/ci.yml`: lint → typecheck → test
-      → build) with a `pages` job publishing the export (`pages.publish: out` on GitLab
-      ≥17, else `rm -rf public && mv out public` before `artifacts.paths: [public]`).
+- [x] Add `.github/workflows/deploy-pages.yml` (mirror `ci.yml`: lint → typecheck →
+      test → build with `BASE_PATH=/${{ github.event.repository.name }}`) that uploads
+      `./out` via `actions/upload-pages-artifact` and deploys with `actions/deploy-pages`
+      on push to `main`.
+- [ ] **Manual, one-time (repo owner):** enable Pages with *Settings → Pages → Source:
+      GitHub Actions*. The workflow deploys on merge to `main`.
 
 ## Slice 2 — GPX writer (pure)
 
