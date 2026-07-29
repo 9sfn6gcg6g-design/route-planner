@@ -6,6 +6,7 @@ import { assembleLoopRoute, assembleRoute, buildWorkGeometry, rotateRingToNeares
 import type { AssembledRoute } from './assemble'
 import { buildGraph } from './graph'
 import { findWorkSegments, type ElevationSampler, type WorkSegment } from './finder'
+import { haversineMeters } from './geo'
 import { toGpx } from './gpx'
 
 export interface RoutePlanDeps {
@@ -41,6 +42,19 @@ function describeSession(session: Session): string {
     case 'hills':
       return `Hill reps ${session.reps}x${session.hillMeters}m`
   }
+}
+
+/**
+ * A non-cycle segment's point order is walk-order-determined, not
+ * runner-aware. Reverse a copy so the end nearer the runner's start comes
+ * first, without mutating the WorkSegment.
+ */
+function nearestEndFirst(points: LatLon[], start: LatLon): LatLon[] {
+  const first = points[0]
+  const last = points[points.length - 1]
+  return haversineMeters(last, start) < haversineMeters(first, start)
+    ? [...points].reverse()
+    : points
 }
 
 /**
@@ -87,7 +101,12 @@ export async function generateRoute(
     throw new Error('No suitable work segment found near the start point')
   }
   const segment = segments[0]
-  const workPoints = segment.isCycle ? rotateRingToNearest(segment.points, start) : segment.points
+  // Cycles rotate to start at the nearest point; stretches are walk-order
+  // (not runner-aware), so if the chain's far end is actually closer to the
+  // start, enter there instead by reversing a copy of the points.
+  const workPoints = segment.isCycle
+    ? rotateRingToNearest(segment.points, start)
+    : nearestEndFirst(segment.points, start)
   const work = buildWorkGeometry(
     { points: workPoints, lengthMeters: segment.lengthMeters, isCycle: segment.isCycle },
     workPhase.targetMeters,

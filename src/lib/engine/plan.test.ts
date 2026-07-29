@@ -90,6 +90,36 @@ describe('generateRoute — stretch sessions', () => {
     const { deps } = fakeDeps([straightWay(1, 51.45, -2.58, 10, 'trunk', 'asphalt')])
     await expect(generateRoute(intervalsSession, start, deps)).rejects.toThrow(/no suitable/i)
   })
+
+  it('enters at the near end when the chain runs toward the start (non-cycle orientation)', async () => {
+    // 9-node way from {51.467, -2.58} down to {51.459, -2.58}: walk order
+    // runs TOWARD the runner, so the chain's first point (~1890m from start)
+    // is the FAR end and its last point (~1001m from start) is the near
+    // end. Chain length ~890m clears the 800m intervals minimum, and both
+    // ends sit inside the 2000m prefilter radius.
+    const wayId = 2
+    const nodeCount = 9
+    const farLat = 51.467
+    const lon = -2.58
+    const points: LatLon[] = Array.from({ length: nodeCount }, (_, i) => ({
+      lat: farLat - i * 0.001,
+      lon,
+    }))
+    const way: OsmWay = {
+      id: wayId,
+      tags: { highway: 'residential', surface: 'asphalt' },
+      nodeIds: Array.from({ length: nodeCount }, (_, i) => wayId * 1000 + i),
+      points,
+    }
+    const { deps, recorded } = fakeDeps([way])
+    const generated = await generateRoute(intervalsSession, start, deps)
+    expect(generated.segment).not.toBeNull()
+    // entry is the way's LAST point (the near end), not its walk-order-first
+    // (far) point — without the fix this would be points[0], ~890m further
+    // from the runner's start.
+    const nearEnd = points[points.length - 1]
+    expect(recorded.footCalls[0].to).toEqual(nearEnd)
+  })
 })
 
 describe('generateRoute — loop sessions', () => {
