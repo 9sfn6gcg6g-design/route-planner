@@ -46,7 +46,7 @@ const EMPTY_VALUES: SessionFormValues = {
   hillMeters: '',
 }
 
-const DEFAULT_RADIUS_METERS = 2000
+const DEFAULT_RADIUS_METERS = 1200
 const MAX_RADIUS_METERS = 8000
 
 const inputClass =

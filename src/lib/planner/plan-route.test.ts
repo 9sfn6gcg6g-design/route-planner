@@ -75,7 +75,7 @@ describe('planRoute', () => {
     await planRoute(easy, start, deps)
     expect(deps.calls).toHaveLength(1)
     expect(deps.calls[0].center).toEqual(start)
-    expect(deps.calls[0].radiusMeters).toBe(2000)
+    expect(deps.calls[0].radiusMeters).toBe(1200)
 
     const custom = depsFor([straightWay(1, 51.45, -2.58, 10, 'residential', 'asphalt')])
     await planRoute(easy, start, custom, { searchRadiusMeters: 500 })

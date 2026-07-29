@@ -74,9 +74,9 @@ export type FetchImpl = (url: string, init?: RequestInit) => Promise<Response>
 export interface FetchWaysOptions {
   /** Instances to try in order. Defaults to OVERPASS_ENDPOINTS. */
   endpoints?: string[]
-  /** Extra attempts per endpoint after the first, for transient failures. Default 1. */
+  /** Extra attempts per endpoint after the first, for transient failures. Default 2. */
   retriesPerEndpoint?: number
-  /** Base backoff between attempts, ms (grows per attempt). Default 500; tests pass 0. */
+  /** Base backoff between attempts, ms (grows per attempt, plus jitter). Default 600; tests pass 0. */
   backoffMs?: number
   /** Injected for tests; defaults to the global fetch. */
   fetchImpl?: FetchImpl
@@ -93,6 +93,10 @@ function isTransientStatus(status: number): boolean {
 const wait = (ms: number): Promise<void> =>
   ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms))
 
+/** Growing backoff with jitter, so retries against a busy instance spread out. */
+export const backoffFor = (baseMs: number, attempt: number): number =>
+  baseMs <= 0 ? 0 : baseMs * (attempt + 1) + Math.random() * baseMs
+
 /**
  * I/O glue over the pure query builder + parser, hardened for the flaky public
  * Overpass instances: try each endpoint in turn, retrying transient failures
@@ -107,8 +111,8 @@ export async function fetchWays(
 ): Promise<OsmWay[]> {
   const {
     endpoints = OVERPASS_ENDPOINTS,
-    retriesPerEndpoint = 1,
-    backoffMs = 500,
+    retriesPerEndpoint = 2,
+    backoffMs = 600,
     fetchImpl = fetch,
   } = options
   const data = buildOverpassQuery(center, radiusMeters)
@@ -128,7 +132,7 @@ export async function fetchWays(
       } catch (err) {
         failures.push(`${endpoint} → ${err instanceof Error ? err.message : 'network error'}`)
       }
-      if (attempt < retriesPerEndpoint) await wait(backoffMs * (attempt + 1))
+      if (attempt < retriesPerEndpoint) await wait(backoffFor(backoffMs, attempt))
     }
   }
 

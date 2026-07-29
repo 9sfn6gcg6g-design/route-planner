@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import fixture from './__fixtures__/overpass-bristol.json'
 import {
+  backoffFor,
   buildOverpassQuery,
   fetchWays,
   OVERPASS_ENDPOINTS,
@@ -163,5 +164,23 @@ describe('fetchWays (endpoint fallback + retry)', () => {
     await expect(
       fetchWays(center, 1000, { endpoints: [A, B], retriesPerEndpoint: 0, fetchImpl: impl }),
     ).rejects.toBeInstanceOf(OverpassUnavailableError)
+  })
+})
+
+describe('backoffFor', () => {
+  it('is zero when the base is zero (tests run without real delays)', () => {
+    expect(backoffFor(0, 0)).toBe(0)
+    expect(backoffFor(0, 3)).toBe(0)
+  })
+
+  it('grows per attempt and stays within a jittered band [base*(n+1), base*(n+2))', () => {
+    for (let k = 0; k < 100; k++) {
+      const a0 = backoffFor(600, 0)
+      expect(a0).toBeGreaterThanOrEqual(600)
+      expect(a0).toBeLessThan(1200)
+      const a1 = backoffFor(600, 1)
+      expect(a1).toBeGreaterThanOrEqual(1200)
+      expect(a1).toBeLessThan(1800)
+    }
   })
 })

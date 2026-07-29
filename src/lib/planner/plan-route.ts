@@ -25,7 +25,9 @@ export interface PlanRouteDeps {
 }
 
 export interface PlanRouteOptions {
-  /** OSM fetch radius and finder prefilter radius, meters. Default 2000. */
+  /** OSM fetch radius and finder prefilter radius, meters. Default 1200 — a lighter
+   *  Overpass query is far less likely to be throttled (429/504); callers widen it
+   *  when the first pass finds nothing. */
   searchRadiusMeters?: number
   /** Cap on returned segments. Defaults to the finder's own default. */
   maxResults?: number
@@ -57,7 +59,7 @@ export async function planRoute(
   deps: PlanRouteDeps,
   options: PlanRouteOptions = {},
 ): Promise<RoutePlan> {
-  const { searchRadiusMeters = 2000, maxResults, compilerConfig } = options
+  const { searchRadiusMeters = 1200, maxResults, compilerConfig } = options
 
   const plan = compileSession(session, compilerConfig)
   const requirements = workRequirements(plan)
