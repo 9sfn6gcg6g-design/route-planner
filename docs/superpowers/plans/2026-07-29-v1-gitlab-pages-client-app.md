@@ -68,8 +68,8 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 - [ ] `next.config.ts`: `output: 'export'`, `images: { unoptimized: true }`,
       `trailingSlash: true`, env-driven `basePath`/`assetPrefix` for the project
       sub-path. **Confirm the final Pages path** before hard-coding.
-- [ ] Replace the create-next-app `src/app/page.tsx` with a minimal real shell; remove
-      the `next/image` usage so export is clean.
+- [x] Replace the create-next-app `src/app/page.tsx` with a minimal real shell; remove
+      the `next/image` usage so export is clean. *(Done in Slice 3.)*
 - [ ] Add `.gitlab-ci.yml` (mirror `.github/workflows/ci.yml`: lint → typecheck → test
       → build) with a `pages` job publishing the export (`pages.publish: out` on GitLab
       ≥17, else `rm -rf public && mv out public` before `artifacts.paths: [public]`).
@@ -82,10 +82,15 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 
 ## Slice 3 — Session form + start point (client)
 
-- [ ] `'use client'` form for all five `Session` types with type-specific fields
+- [x] `'use client'` form for all five `Session` types with type-specific fields
       (`src/lib/domain/types.ts`); friendly validation at the boundary (decision 10).
-- [ ] Start point: browser Geolocation with UK-postcode fallback via postcodes.io
-      (keyless, CORS) → `LatLon`, behind an injected/testable geocode function.
+      Pure parser `src/lib/session-input/parse.ts` (tested); thin client component
+      `src/app/planner.tsx`.
+- [x] Start point: browser Geolocation with UK-postcode fallback via postcodes.io
+      (keyless, CORS) → `LatLon`. Pure `buildPostcodeUrl`/`parsePostcodeResponse`
+      (`src/lib/engine/geocode.ts`, tested); `geocodePostcode` is the I/O glue.
+- [x] Replaced the create-next-app `page.tsx` with the real form page and removed the
+      `next/image` usage + template SVGs (this was listed under Slice 1).
 
 ## Slice 4 — Orchestrator (`src/lib/planner/`)
 
