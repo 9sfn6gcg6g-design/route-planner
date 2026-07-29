@@ -14,7 +14,7 @@ minimal-input feel of training apps (Runna, Coopah): sensible defaults over knob
 clean confidence-inspiring results view. Session entry stays minimal and type-specific
 (decision 2 — no pace input).
 
-**Scope (decisions 3, 11):** session input → map preview of the session's **work
+**Scope (decisions 3, 12):** session input → map preview of the session's **work
 segment(s)** → single continuous GPX download. Account-less (decision 8 deferred).
 **Out of v1:** door-to-door loop assembly + Openrouteservice connectors (decisions 5/6)
 — a v1.1 follow-up, kept out so no API key ships in client JS. Also out: accounts
@@ -60,7 +60,7 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 
 ## Slice 0 — Docs (this PR)
 
-- [x] Amend `docs/domain.md` decision 8 (accounts deferred post-v1) and add decision 11
+- [x] Amend `docs/domain.md` decision 8 (accounts deferred post-v1) and add decision 12
       (client-only static GitHub Pages v1; work-segments only; ORS/loop out of v1).
 - [x] Add this plan of record and claim it (`Status: in progress`).
 

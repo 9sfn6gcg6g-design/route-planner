@@ -31,7 +31,7 @@ const start: LatLon = { lat: 51.45, lon: -2.58 }
 const intervals: TerrainRequirements = {
   maxAvgGradientPercent: 1,
   minAvgGradientPercent: null,
-  maxJunctionsPerKm: 1,
+  maxJunctionsPerKm: 6,
   minQuietness: 0.7,
   surface: 'paved',
   minUninterruptedMeters: 800,
@@ -40,7 +40,7 @@ const intervals: TerrainRequirements = {
 const hills: TerrainRequirements = {
   maxAvgGradientPercent: 15,
   minAvgGradientPercent: 4,
-  maxJunctionsPerKm: 2,
+  maxJunctionsPerKm: 6,
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
@@ -120,5 +120,34 @@ describe('findWorkSegments', () => {
       maxResults: 2,
     })
     expect(results).toHaveLength(2)
+  })
+
+  it('batches all candidates into a single sampler call', async () => {
+    const calls: LatLon[][] = []
+    const recording: ElevationSampler = async (points) => {
+      calls.push(points)
+      return points.map(() => 10)
+    }
+    const graph = buildGraph([
+      straightWay(1, 51.45, -2.58, 10, 'residential', 'asphalt'),
+      straightWay(2, 51.45, -2.577, 10, 'cycleway', 'asphalt'),
+    ])
+    const results = await findWorkSegments(graph, start, intervals, recording)
+    expect(results).toHaveLength(2)
+    expect(calls).toHaveLength(1)
+    // the one call carries both candidates' resampled points
+    expect(calls[0].length).toBeGreaterThan(40)
+  })
+
+  it('makes no sampler call when no candidate survives the prefilter', async () => {
+    const calls: LatLon[][] = []
+    const recording: ElevationSampler = async (points) => {
+      calls.push(points)
+      return points.map(() => 10)
+    }
+    const graph = buildGraph([straightWay(1, 51.45, -2.58, 3, 'residential', 'asphalt')])
+    const results = await findWorkSegments(graph, start, intervals, recording)
+    expect(results).toHaveLength(0)
+    expect(calls).toHaveLength(0)
   })
 })

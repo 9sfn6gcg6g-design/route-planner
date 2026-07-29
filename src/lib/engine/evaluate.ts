@@ -15,11 +15,8 @@ export function chainMinQuietness(chain: Chain): number {
 /**
  * Check a chain against a work phase's terrain requirements and score it
  * for ranking. Pass gradientPercent = null to run only the static checks
- * (length, quietness, surface) — the finder uses that as a cheap prefilter
- * before spending elevation lookups.
- *
- * maxJunctionsPerKm needs no check here: chains have no interior true
- * crossings by construction (see buildChains).
+ * (length, quietness, surface, junction density) — the finder uses that as a
+ * cheap prefilter before spending elevation lookups.
  *
  * The score is a v1 ranking heuristic, not a calibrated quantity:
  * quietness dominates, then gradient fit (flatness — or steepness when the
@@ -47,6 +44,22 @@ export function evaluateChain(
   if (requirements.surface === 'paved' && !chain.edges.every((e) => e.surface === 'paved')) {
     failures.push('surface is not verifiably paved throughout (unknown fails closed)')
   }
+
+  // Chains never contain interior MAJOR crossings (buildChains terminates
+  // there); maxJunctionsPerKm bounds the tolerated minor joins per km. A
+  // zero-length chain has no km to divide by (0/0 is NaN, and `NaN > max`
+  // is always false) — treat it as infinitely dense so it fails any finite
+  // maximum instead of silently passing.
+  const junctionsPerKm =
+    chain.lengthMeters > 0
+      ? chain.toleratedJunctionNodeIds.length / (chain.lengthMeters / 1000)
+      : Infinity
+  if (junctionsPerKm > requirements.maxJunctionsPerKm) {
+    failures.push(
+      `junction density ${junctionsPerKm.toFixed(1)}/km exceeds the maximum ${requirements.maxJunctionsPerKm}/km`,
+    )
+  }
+
   if (gradientPercent !== null) {
     if (gradientPercent > requirements.maxAvgGradientPercent) {
       failures.push(

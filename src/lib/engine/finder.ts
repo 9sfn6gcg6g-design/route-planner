@@ -40,8 +40,10 @@ function distanceFromStart(start: LatLon, chain: Chain): number {
  * Find ranked work segments near a start point. Cheap checks run first —
  * distance prefilter, then static requirement checks (gradient = null) —
  * so the elevation sampler is only called for chains that could actually
- * qualify. Whole-chain evaluation only: finding a qualifying sub-window
- * inside a longer chain that fails on average is a future refinement.
+ * qualify. All surviving candidates' resampled points are batched into a
+ * single elevation call for frugality. Whole-chain evaluation only: finding
+ * a qualifying sub-window inside a longer chain that fails on average is a
+ * future refinement.
  */
 export async function findWorkSegments(
   graph: RunGraph,
@@ -65,21 +67,32 @@ export async function findWorkSegments(
   }
 
   const results: WorkSegment[] = []
-  for (const { chain, distance } of candidates) {
-    const resampled = resamplePoints(chain.points, resampleIntervalMeters)
-    const elevations = await sampleElevations(resampled)
-    const gradient = avgAbsGradientPercent(elevations, cumulativeMeters(resampled))
-    const evaluation = evaluateChain(chain, requirements, gradient)
-    if (!evaluation.passes) continue
-    results.push({
-      points: chain.points,
-      lengthMeters: chain.lengthMeters,
-      distanceFromStartMeters: distance,
-      isCycle: chain.isCycle,
-      minQuietness: evaluation.minQuietness,
-      avgAbsGradientPercent: gradient,
-      score: evaluation.score,
-    })
+  if (candidates.length > 0) {
+    const resampledAll = candidates.map(({ chain }) =>
+      resamplePoints(chain.points, resampleIntervalMeters),
+    )
+    // One batched call for every candidate; fetchElevations chunks by 100
+    // internally, so this is at most a couple of HTTP requests total.
+    const elevations = await sampleElevations(resampledAll.flat())
+    let offset = 0
+    for (let i = 0; i < candidates.length; i++) {
+      const { chain, distance } = candidates[i]
+      const resampled = resampledAll[i]
+      const slice = elevations.slice(offset, offset + resampled.length)
+      offset += resampled.length
+      const gradient = avgAbsGradientPercent(slice, cumulativeMeters(resampled))
+      const evaluation = evaluateChain(chain, requirements, gradient)
+      if (!evaluation.passes) continue
+      results.push({
+        points: chain.points,
+        lengthMeters: chain.lengthMeters,
+        distanceFromStartMeters: distance,
+        isCycle: chain.isCycle,
+        minQuietness: evaluation.minQuietness,
+        avgAbsGradientPercent: gradient,
+        score: evaluation.score,
+      })
+    }
   }
 
   return results.sort((a, b) => b.score - a.score).slice(0, maxResults)

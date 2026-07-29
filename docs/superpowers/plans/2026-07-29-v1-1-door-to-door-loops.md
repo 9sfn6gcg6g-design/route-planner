@@ -11,16 +11,17 @@ founding promise — "the session drives the route; you get a loop from your doo
 
 1. **Fragments, not loops.** v1 hands back a single stretch that may start up to ~2 km
    from the door, with no way to get to it and back. A runner can't run a lone line.
-2. **Continuous sessions ignore the distance.** For easy/long/tempo,
+2. **Continuous sessions ignore the distance.** For easy and long,
    `terrainRequirementsFor` sets `minUninterruptedMeters: null`, so the finder returns
    *any* quiet stretch of *any* length near the start — an 8 km easy request can yield a
    400 m stretch. The distance input barely touches the output. (Intervals/hills fare
-   better: `minUninterruptedMeters = rep/hill length`, so the stretch is at least rep-
-   length — genuinely useful for finding where to do reps.)
+   better: `minUninterruptedMeters = rep/hill length`. Tempo got a floor on `main`
+   —`min(tempoMeters, 1500)`, decision 11 — but still isn't a full distance-matched
+   loop.) Loop assembly is what makes any of these hit the requested distance.
 
 **Goal:** Make every result a **door-to-door loop matching the session** — assembled and
 exported as one continuous GPX (decision 4) — so the output is something a runner can
-actually run. Stay client-only and **keyless** (v1 host is GitHub Pages, decision 11).
+actually run. Stay client-only and **keyless** (v1 host is GitHub Pages, decision 12).
 
 **Architecture (the key idea):** we already fetch and build a scored `RunGraph` around
 the start (`src/lib/engine/graph.ts`). Connectors and loops are **routing on that graph**
