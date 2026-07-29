@@ -118,3 +118,16 @@ the repo is already on GitHub.)
       `src/lib/results/format.ts` (tested).
 - [x] Wire form → `planRoute` (live Overpass + Open-Meteo from the browser) → results
       end to end.
+
+## Slice 6 — Overpass reliability
+
+Live testing showed the single public Overpass instance (`overpass-api.de`) frequently
+504s/406s under the app's query, so route finding fails intermittently even though the
+code and CORS are fine. Harden the fetch (engine, `src/lib/engine/overpass.ts`).
+
+- [x] Try multiple Overpass mirrors in order (`OVERPASS_ENDPOINTS`), retry transient
+      failures (429/406/5xx and network errors) with backoff, fall through to the next
+      mirror, and throw `OverpassUnavailableError` only when all fail. `fetchImpl` is
+      injected so the fallback/retry logic is unit-tested with no network.
+- [ ] *(Deferred, optional)* lighten the query / reduce default radius if mirrors alone
+      prove insufficient; tailor the UI copy for `OverpassUnavailableError`.
