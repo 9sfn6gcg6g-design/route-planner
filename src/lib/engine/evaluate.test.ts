@@ -27,6 +27,7 @@ function chain(edges: RunEdge[]): Chain {
     startNodeId: 1,
     endNodeId: 2,
     isCycle: false,
+    toleratedJunctionNodeIds: [],
   }
 }
 

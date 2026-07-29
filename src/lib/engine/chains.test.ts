@@ -83,4 +83,81 @@ describe('buildChains', () => {
       expect(chain.lengthMeters).toBeGreaterThan(0)
     }
   })
+
+  it('continues a street through a footpath crossing, recording a tolerated junction', () => {
+    // residential street 10-11-12 crossed at node 11 by footway 20-11-21
+    const street = way(1, [10, 11, 12], [51.45, 51.451, 51.452])
+    const path: OsmWay = {
+      id: 2,
+      tags: { highway: 'footway' },
+      nodeIds: [20, 11, 21],
+      points: [
+        { lat: 51.451, lon: -2.579 },
+        { lat: 51.451, lon: -2.5801 },
+        { lat: 51.451, lon: -2.581 },
+      ],
+    }
+    const chains = buildChains(buildGraph([street, path]))
+    expect(chains).toHaveLength(3)
+    const streetChain = chains.find((c) => c.edges[0].highway === 'residential')
+    expect(streetChain).toBeDefined()
+    expect(streetChain!.edges).toHaveLength(2)
+    expect(streetChain!.toleratedJunctionNodeIds).toEqual([11])
+    // the footway is still cut at the street: crossing a road IS a forced stop
+    const footChains = chains.filter((c) => c.edges[0].highway === 'footway')
+    expect(footChains).toHaveLength(2)
+    for (const c of footChains) {
+      expect(c.toleratedJunctionNodeIds).toEqual([])
+    }
+  })
+
+  it('continues across a way-id change via same highway class when the join is minor', () => {
+    const a = way(1, [10, 11], [51.45, 51.451])
+    const b = way(2, [11, 12], [51.451, 51.452])
+    const spur: OsmWay = {
+      id: 3,
+      tags: { highway: 'footway' },
+      nodeIds: [11, 20],
+      points: [
+        { lat: 51.451, lon: -2.5801 },
+        { lat: 51.451, lon: -2.579 },
+      ],
+    }
+    const chains = buildChains(buildGraph([a, b, spur]))
+    expect(chains).toHaveLength(2)
+    const streetChain = chains.find((c) => c.edges[0].highway === 'residential')
+    expect(streetChain!.edges).toHaveLength(2)
+    expect(streetChain!.toleratedJunctionNodeIds).toEqual([11])
+  })
+
+  it('terminates on an ambiguous same-class fork', () => {
+    const a: OsmWay = { id: 1, tags: { highway: 'footway' }, nodeIds: [10, 11], points: [{ lat: 51.45, lon: -2.58 }, { lat: 51.451, lon: -2.58 }] }
+    const b: OsmWay = { id: 2, tags: { highway: 'footway' }, nodeIds: [11, 12], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.452, lon: -2.58 }] }
+    const c: OsmWay = { id: 3, tags: { highway: 'footway' }, nodeIds: [11, 13], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.451, lon: -2.579 }] }
+    const chains = buildChains(buildGraph([a, b, c]))
+    expect(chains).toHaveLength(3)
+    for (const ch of chains) {
+      expect(ch.toleratedJunctionNodeIds).toEqual([])
+    }
+  })
+
+  it('still terminates at a major crossing', () => {
+    // the existing crossing test asserts 4 chains; this asserts none of them tolerated anything
+    const graph = buildGraph([
+      way(1, [10, 20, 12], [51.45, 51.451, 51.452]),
+      way(2, [30, 20, 32], [51.46, 51.451, 51.462]),
+    ])
+    for (const chain of buildChains(graph)) {
+      expect(chain.toleratedJunctionNodeIds).toEqual([])
+    }
+  })
+
+  it('tolerance never shortens chains on the real Bristol fixture and strictly lengthens some', () => {
+    const graph = buildGraph(parseOverpassResponse(fixture))
+    const chains = buildChains(graph)
+    const chainEdgeCount = chains.reduce((s, c) => s + c.edges.length, 0)
+    expect(chainEdgeCount).toBe(graph.edges.length)
+    const totalTolerated = chains.reduce((s, c) => s + c.toleratedJunctionNodeIds.length, 0)
+    expect(totalTolerated).toBeGreaterThan(0)
+  })
 })

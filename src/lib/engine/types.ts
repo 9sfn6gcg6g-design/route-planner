@@ -52,4 +52,9 @@ export interface Chain {
   startNodeId: number
   endNodeId: number
   isCycle: boolean
+  /** Degree->=3 nodes the chain was allowed to pass through because every
+   *  other joining way is minor (footway/path/cycleway/track/service).
+   *  These count toward junction density; true major crossings still
+   *  terminate chains and never appear here. */
+  toleratedJunctionNodeIds: number[]
 }
