@@ -1,5 +1,16 @@
 # Route Engine B: Work-Segment Finder — Implementation Plan
 
+**Status:** complete (landed 2026-07-28) · **Owner:** Liam
+
+> Step checkboxes below were never ticked during execution, but the work
+> shipped — `chains.ts`, `resample.ts`, `evaluate.ts`, `finder.ts` and their
+> tests are on `main`. Trust `git log` and the code, not the boxes. On future
+> plans, tick as you land each step and update this header when you claim or
+> finish a plan (see `AGENTS.md`).
+>
+> **Deferred out of this plan:** sub-chain windowing (finding a qualifying 800m
+> window inside a longer chain whose whole-chain gradient fails). Still open.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Given a `RunGraph`, a start point, and a work phase's `TerrainRequirements`, find and rank real uninterrupted stretches where the runner can do the session — the core product capability.
@@ -16,7 +27,7 @@
 - Elevation frugality: the finder must not call the elevation sampler for chains that already fail distance or static checks — tests enforce this with call-recording fakes.
 - Engine → domain imports are **type-only** (`import type { TerrainRequirements } from '@/lib/domain/types'`); never import domain functions, never import engine code from domain.
 - Sub-chain windowing (finding a qualifying 800m window inside a 2km chain whose average gradient fails) is OUT of this plan — whole-chain evaluation only; note it as a future refinement where indicated.
-- Commit messages: conventional commits ending with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+- Commit messages: conventional commits ending with a `Co-Authored-By:` trailer naming the model that did the work — see `AGENTS.md`.
 
 ---
 
@@ -235,7 +246,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: chain builder merging edges through degree-2 splices
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -362,7 +373,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: polyline resampling for stable elevation sampling
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -608,7 +619,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: chain evaluation against terrain requirements with ranking score
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -865,7 +876,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: work-segment finder with prefiltered elevation sampling and ranking
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```

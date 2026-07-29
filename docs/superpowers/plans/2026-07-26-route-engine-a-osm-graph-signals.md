@@ -1,5 +1,13 @@
 # Route Engine A: OSM Ingestion, Graph, and Signals — Implementation Plan
 
+**Status:** complete (landed 2026-07-26) · **Owner:** Liam
+
+> Step checkboxes below were never ticked during execution, but the work
+> shipped — `overpass.ts`, `graph.ts`, `signals.ts`, `elevation.ts` and their
+> tests are on `main`. Trust `git log` and the code, not the boxes. On future
+> plans, tick as you land each step and update this header when you claim or
+> finish a plan (see `AGENTS.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the data layer of the route engine: fetch runnable OSM ways around a point, build a junction-split local graph, and annotate every edge with the signals the segment scorer needs (quietness, surface, length, gradient).
@@ -17,7 +25,7 @@
 - `steps` are excluded from the fetch query entirely (you can't run reps on stairs).
 - Thin fetch wrappers (`fetchWays`, `fetchElevations`) are I/O glue: no unit tests required for them; everything they compose (query builders, parsers) must be pure and tested.
 - Committed fixture is real OSM data → the fixture file must start with no comment (JSON), but Task 2 adds an attribution line to `docs/domain.md` crediting OpenStreetMap contributors (ODbL).
-- Commit messages: conventional commits ending with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+- Commit messages: conventional commits ending with a `Co-Authored-By:` trailer naming the model that did the work — see `AGENTS.md`.
 
 ---
 
@@ -189,7 +197,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: engine geo primitives (haversine, path length)
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -402,7 +410,7 @@ git add src/lib/engine docs/domain.md
 git commit -m "$(cat <<'EOF'
 feat: overpass query builder, parser, and Bristol fixture
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -606,7 +614,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: quietness and surface signals from OSM tags
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -779,7 +787,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: junction-split run graph from OSM ways
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -957,7 +965,7 @@ git add src/lib/engine
 git commit -m "$(cat <<'EOF'
 feat: open-meteo elevation enrichment and gradient stats
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude <your model> <noreply@anthropic.com>
 EOF
 )"
 ```
