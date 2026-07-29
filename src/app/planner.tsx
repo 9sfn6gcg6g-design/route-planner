@@ -50,11 +50,20 @@ const inputClass =
   'w-full rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 ' +
   'outline-none focus:border-black/50 dark:focus:border-white/60'
 
+const DEFAULT_RADIUS_METERS = 2000
+const MAX_RADIUS_METERS = 8000
+
 type RunState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'done'; session: Session; start: LatLon; segments: WorkSegment[] }
+  | {
+      status: 'done'
+      session: Session
+      start: LatLon
+      segments: WorkSegment[]
+      radiusMeters: number
+    }
 
 function Field({
   label,
@@ -142,6 +151,26 @@ export default function Planner() {
     }
   }
 
+  async function runPlan(session: Session, startPoint: LatLon, radiusMeters: number) {
+    setSelected(0)
+    setRun({ status: 'loading' })
+    try {
+      const plan = await planRoute(
+        session,
+        startPoint,
+        { fetchWays, sampleElevations: fetchElevations },
+        { searchRadiusMeters: radiusMeters },
+      )
+      setRun({ status: 'done', session, start: startPoint, segments: plan.segments, radiusMeters })
+    } catch {
+      setRun({
+        status: 'error',
+        message:
+          'Could not search right now — the map or elevation service may be busy. Please try again in a moment.',
+      })
+    }
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
     setFormError(null)
@@ -155,21 +184,7 @@ export default function Planner() {
       return
     }
     setErrors({})
-    setSelected(0)
-    setRun({ status: 'loading' })
-    try {
-      const plan = await planRoute(result.session, start, {
-        fetchWays,
-        sampleElevations: fetchElevations,
-      })
-      setRun({ status: 'done', session: result.session, start, segments: plan.segments })
-    } catch {
-      setRun({
-        status: 'error',
-        message:
-          'Could not build a route right now — the map or elevation service may be busy. Please try again.',
-      })
-    }
+    await runPlan(result.session, start, DEFAULT_RADIUS_METERS)
   }
 
   return (
@@ -323,7 +338,21 @@ export default function Planner() {
         {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
       </form>
 
-      <Results run={run} selected={selected} onSelect={setSelected} />
+      <Results
+        run={run}
+        selected={selected}
+        onSelect={setSelected}
+        onWiden={
+          run.status === 'done' && run.radiusMeters < MAX_RADIUS_METERS
+            ? () =>
+                runPlan(
+                  run.session,
+                  run.start,
+                  Math.min(run.radiusMeters * 2, MAX_RADIUS_METERS),
+                )
+            : undefined
+        }
+      />
     </div>
   )
 }
@@ -332,10 +361,12 @@ function Results({
   run,
   selected,
   onSelect,
+  onWiden,
 }: {
   run: RunState
   selected: number
   onSelect: (index: number) => void
+  onWiden?: () => void
 }) {
   if (run.status === 'idle') return null
   if (run.status === 'loading') {
@@ -348,19 +379,32 @@ function Results({
   const { session, start, segments } = run
   if (segments.length === 0) {
     return (
-      <p className="text-sm opacity-70">
-        No stretches matching a {sessionSummary(session).toLowerCase()} were found within about
-        2&nbsp;km. Try a different start point or session.
-      </p>
+      <div className="flex flex-col gap-3 text-sm">
+        <p className="opacity-70">
+          No stretches suited to a {sessionSummary(session).toLowerCase()} turned up within{' '}
+          {formatKm(run.radiusMeters)} of your start. You could search a wider area, choose a
+          different start point, or try another session type.
+        </p>
+        {onWiden && (
+          <button
+            type="button"
+            onClick={onWiden}
+            className="self-start rounded-full border border-foreground px-5 py-2 text-sm font-semibold hover:bg-foreground hover:text-background"
+          >
+            Search a wider area
+          </button>
+        )}
+      </div>
     )
   }
 
   const current = segments[Math.min(selected, segments.length - 1)]
+  const count = segments.length
 
   return (
     <section className="flex flex-col gap-4">
       <h2 className="text-sm font-semibold">
-        {segments.length} route{segments.length > 1 ? 's' : ''} for {sessionSummary(session)}
+        {count} {count > 1 ? 'stretches' : 'stretch'} for {sessionSummary(session)}
       </h2>
 
       <RouteMap start={start} route={current.points} />
@@ -402,8 +446,9 @@ function Results({
         Download GPX
       </button>
       <p className="text-xs opacity-60">
-        Map data © OpenStreetMap contributors. This is the session&rsquo;s work stretch; connecting
-        it into a full loop from your door comes next.
+        Map data © OpenStreetMap contributors. This is the session&rsquo;s work stretch — the ground
+        that suits the session, not yet a full loop from your door. Connecting it into a door-to-door
+        route comes next (v1.1).
       </p>
     </section>
   )
