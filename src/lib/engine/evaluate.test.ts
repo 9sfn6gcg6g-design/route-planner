@@ -137,4 +137,10 @@ describe('junction density', () => {
     c.toleratedJunctionNodeIds = [1, 2, 3]
     expect(evaluateChain(c, intervals, null).passes).toBe(true)
   })
+
+  it('does not silently pass a zero-length chain (0/0 must not evaluate as an acceptable density)', () => {
+    const result = evaluateChain(chain([edge(0, 0.9, 'paved')]), intervals, null)
+    expect(result.passes).toBe(false)
+    expect(result.failures.join(' ')).toMatch(/junction/i)
+  })
 })

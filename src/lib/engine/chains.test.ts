@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { terrainRequirementsFor } from '@/lib/domain/profiles'
+import type { Session } from '@/lib/domain/types'
 import fixture from './__fixtures__/overpass-bristol.json'
+import wideFixture from './__fixtures__/overpass-bristol-wide.json'
 import { buildChains } from './chains'
+import { evaluateChain } from './evaluate'
 import { buildGraph } from './graph'
 import { parseOverpassResponse } from './overpass'
 import type { OsmWay } from './types'
@@ -152,6 +156,36 @@ describe('buildChains', () => {
     }
   })
 
+  it('produces the same chain structure regardless of input way order at a tolerable junction', () => {
+    // same geometry as the way-id-change test above, built in three different
+    // way orders: chain starts must be structural (topology), not an
+    // artifact of which edge the walk happened to begin on.
+    const a = way(1, [10, 11], [51.45, 51.451])
+    const b = way(2, [11, 12], [51.451, 51.452])
+    const spur: OsmWay = {
+      id: 3,
+      tags: { highway: 'footway' },
+      nodeIds: [11, 20],
+      points: [
+        { lat: 51.451, lon: -2.5801 },
+        { lat: 51.451, lon: -2.579 },
+      ],
+    }
+    const orders: OsmWay[][] = [
+      [a, b, spur],
+      [b, a, spur],
+      [spur, b, a],
+    ]
+    for (const ways of orders) {
+      const chains = buildChains(buildGraph(ways))
+      expect(chains).toHaveLength(2)
+      const streetChain = chains.find((c) => c.edges[0].highway === 'residential')
+      expect(streetChain).toBeDefined()
+      expect(streetChain!.edges).toHaveLength(2)
+      expect(streetChain!.toleratedJunctionNodeIds).toEqual([11])
+    }
+  })
+
   it('tolerance never shortens chains on the real Bristol fixture and strictly lengthens some', () => {
     const graph = buildGraph(parseOverpassResponse(fixture))
     const chains = buildChains(graph)
@@ -159,5 +193,76 @@ describe('buildChains', () => {
     expect(chainEdgeCount).toBe(graph.edges.length)
     const totalTolerated = chains.reduce((s, c) => s + c.toleratedJunctionNodeIds.length, 0)
     expect(totalTolerated).toBeGreaterThan(0)
+  })
+
+  describe('wide Bristol fixture (real data, 1500m radius)', () => {
+    // See /Users/liamgrogan/Projects/route-planner/.superpowers/sdd/2026-07-28-route-engine-c-finder-rules/final-fix-report.md
+    // for the full measured numbers this test's thresholds are drawn from
+    // (chain count/length percentiles and per-profile static-candidate
+    // counts). Thresholds here are deliberately conservative lower bounds
+    // on real, measured, non-zero results — not exact-match assertions —
+    // so the test stays a true regression guard without being brittle to
+    // incidental logic changes.
+    const graph = buildGraph(parseOverpassResponse(wideFixture))
+    const chains = buildChains(graph)
+
+    it('parses at least 200 ways from the fixture', () => {
+      expect(parseOverpassResponse(wideFixture).length).toBeGreaterThanOrEqual(200)
+    })
+
+    it('conserves every edge into exactly one chain', () => {
+      const chainEdgeCount = chains.reduce((s, c) => s + c.edges.length, 0)
+      expect(chainEdgeCount).toBe(graph.edges.length)
+      const chainLength = chains.reduce((s, c) => s + c.lengthMeters, 0)
+      const edgeLength = graph.edges.reduce((s, e) => s + e.lengthMeters, 0)
+      expect(chainLength).toBeCloseTo(edgeLength, 4)
+    })
+
+    it('yields at least one chain long and quiet enough for a 6x800m interval session (static check)', () => {
+      const req = terrainRequirementsFor({
+        type: 'intervals',
+        reps: 6,
+        repMeters: 800,
+        recovery: 'jog',
+      } satisfies Session)
+      const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
+      expect(candidates.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('yields at least one chain long and quiet enough for a 12x400m interval session (static check)', () => {
+      const req = terrainRequirementsFor({
+        type: 'intervals',
+        reps: 12,
+        repMeters: 400,
+        recovery: 'jog',
+      } satisfies Session)
+      const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
+      expect(candidates.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('yields at least one chain suitable for an 8x300m hills session (static check)', () => {
+      const req = terrainRequirementsFor({
+        type: 'hills',
+        reps: 8,
+        hillMeters: 300,
+      } satisfies Session)
+      const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
+      expect(candidates.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('yields at least one chain >=400m where every edge is quiet (>=0.7) — the minor-join rule unlocking real stretches', () => {
+      const long = chains.filter(
+        (c) => c.lengthMeters >= 400 && c.edges.every((e) => e.quietness >= 0.7),
+      )
+      expect(long.length).toBeGreaterThanOrEqual(1)
+    })
+
+    // NOTE: a 5000m tempo session (minUninterruptedMeters capped at 1500m,
+    // paved, minQuietness 0.6) has ZERO static candidates on this fixture —
+    // no single uninterrupted stretch in this 1500m-radius clip is both
+    // 1500m long and fully paved/quiet enough. That is a real, measured
+    // result (see the fix report), not a bug: it says a production finder
+    // would need a wider fetch radius to serve tempo sessions here. No
+    // assertion is made for it — the data doesn't support one either way.
   })
 })

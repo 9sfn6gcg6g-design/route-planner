@@ -30,6 +30,13 @@ export function buildChains(graph: RunGraph): Chain[] {
     addIncident(adjacency, edge.fromNodeId, edge)
     if (edge.toNodeId !== edge.fromNodeId) addIncident(adjacency, edge.toNodeId, edge)
   }
+  // nodeDegree counts a self-loop edge TWICE (once per endpoint, both the
+  // same node) while adjacency stores that edge only ONCE for that node
+  // (addIncident guards fromNodeId === toNodeId). This mismatch is only
+  // ever surfaced through `degree` and `adjacency` together, and all
+  // passability logic below (structuralContinuation, the degree-2 splice
+  // check in `walk`) must keep using them exactly as defined here, not
+  // re-derive an "equivalent" count from the other.
   const degree = (nodeId: number): number => graph.nodeDegree.get(nodeId) ?? 0
   const visited = new Set<RunEdge>()
   const chains: Chain[] = []
@@ -37,10 +44,15 @@ export function buildChains(graph: RunGraph): Chain[] {
   /**
    * At a degree->=3 node, pick the continuation: the unique candidate on
    * the same way, else the unique candidate of the same highway class.
-   * Continue only if every OTHER candidate is a minor join and the chosen
-   * continuation is unvisited; otherwise terminate (return null).
+   * Continue only if every OTHER candidate is a minor join; otherwise
+   * terminate (return null). Passability is pure topology — this never
+   * consults `visited`, so it gives the same answer regardless of which
+   * direction a walk arrives from or what's already been walked. Callers
+   * that care about traversal state (e.g. `walk`, which must not step onto
+   * an edge another walk already consumed) check `visited` themselves on
+   * the returned edge.
    */
-  const continuationThrough = (nodeId: number, arrived: RunEdge): RunEdge | null => {
+  const structuralContinuation = (nodeId: number, arrived: RunEdge): RunEdge | null => {
     const candidates = (adjacency.get(nodeId) ?? []).filter((e) => e !== arrived)
     let chosen: RunEdge | null = null
     const byWay = candidates.filter((e) => e.wayId === arrived.wayId)
@@ -50,7 +62,7 @@ export function buildChains(graph: RunGraph): Chain[] {
       const byClass = candidates.filter((e) => e.highway === arrived.highway)
       if (byClass.length === 1) chosen = byClass[0]
     }
-    if (!chosen || visited.has(chosen)) return null
+    if (!chosen) return null
     const others = candidates.filter((e) => e !== chosen)
     if (!others.every((e) => MINOR_JOIN_HIGHWAYS.has(e.highway))) return null
     return chosen
@@ -74,8 +86,8 @@ export function buildChains(graph: RunGraph): Chain[] {
       if (degree(nodeId) === 2) {
         edge = (adjacency.get(nodeId) ?? []).find((e) => !visited.has(e))
       } else {
-        const next = continuationThrough(nodeId, edge)
-        if (next) {
+        const next = structuralContinuation(nodeId, edge)
+        if (next && !visited.has(next)) {
           toleratedJunctionNodeIds.push(nodeId)
           edge = next
         } else {
@@ -94,11 +106,21 @@ export function buildChains(graph: RunGraph): Chain[] {
     }
   }
 
-  // Pass 1: start every chain from a node the walk cannot pass through.
+  // Pass 1: start every chain from a node the walk cannot pass through. A
+  // node is a genuine start for this edge iff it's not a degree-2 splice
+  // AND a walk arriving here via this edge could not structurally continue
+  // (topology alone, independent of traversal order/visited state) — that
+  // makes chain starts deterministic regardless of input way order.
   for (const edge of graph.edges) {
     if (visited.has(edge)) continue
-    if (degree(edge.fromNodeId) !== 2) chains.push(walk(edge.fromNodeId, edge))
-    else if (degree(edge.toNodeId) !== 2) chains.push(walk(edge.toNodeId, edge))
+    if (degree(edge.fromNodeId) !== 2 && structuralContinuation(edge.fromNodeId, edge) === null) {
+      chains.push(walk(edge.fromNodeId, edge))
+    } else if (
+      degree(edge.toNodeId) !== 2 &&
+      structuralContinuation(edge.toNodeId, edge) === null
+    ) {
+      chains.push(walk(edge.toNodeId, edge))
+    }
   }
   // Pass 2: whatever remains is a pure degree-2 cycle.
   for (const edge of graph.edges) {

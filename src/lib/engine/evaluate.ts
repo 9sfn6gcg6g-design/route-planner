@@ -46,9 +46,14 @@ export function evaluateChain(
   }
 
   // Chains never contain interior MAJOR crossings (buildChains terminates
-  // there); maxJunctionsPerKm bounds the tolerated minor joins per km.
+  // there); maxJunctionsPerKm bounds the tolerated minor joins per km. A
+  // zero-length chain has no km to divide by (0/0 is NaN, and `NaN > max`
+  // is always false) — treat it as infinitely dense so it fails any finite
+  // maximum instead of silently passing.
   const junctionsPerKm =
-    chain.toleratedJunctionNodeIds.length / (chain.lengthMeters / 1000)
+    chain.lengthMeters > 0
+      ? chain.toleratedJunctionNodeIds.length / (chain.lengthMeters / 1000)
+      : Infinity
   if (junctionsPerKm > requirements.maxJunctionsPerKm) {
     failures.push(
       `junction density ${junctionsPerKm.toFixed(1)}/km exceeds the maximum ${requirements.maxJunctionsPerKm}/km`,
