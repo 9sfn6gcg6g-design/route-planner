@@ -29,11 +29,11 @@ export default function RouteMap({ start, route }: { start: LatLon; route: LatLo
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Polyline positions={route.map(toLatLng)} pathOptions={{ color: '#2563eb', weight: 5 }} />
+      <Polyline positions={route.map(toLatLng)} pathOptions={{ color: '#c05b2e', weight: 5 }} />
       <CircleMarker
         center={toLatLng(start)}
         radius={7}
-        pathOptions={{ color: '#052e16', fillColor: '#22c55e', fillOpacity: 1, weight: 2 }}
+        pathOptions={{ color: '#c05b2e', fillColor: '#1b1814', fillOpacity: 1, weight: 2 }}
       />
       <FitBounds points={route.length > 0 ? route : [start]} />
     </MapContainer>

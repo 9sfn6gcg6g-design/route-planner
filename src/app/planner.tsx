@@ -25,7 +25,7 @@ import {
 
 const RouteMap = dynamic(() => import('./route-map'), {
   ssr: false,
-  loading: () => <div className="h-80 w-full rounded-xl bg-black/5 dark:bg-white/10" />,
+  loading: () => <div className="h-80 w-full rounded-sm bg-paper-warm" />,
 })
 
 const SESSION_TYPES: Array<{ value: Session['type']; label: string; blurb: string }> = [
@@ -46,12 +46,14 @@ const EMPTY_VALUES: SessionFormValues = {
   hillMeters: '',
 }
 
-const inputClass =
-  'w-full rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 ' +
-  'outline-none focus:border-black/50 dark:focus:border-white/60'
-
 const DEFAULT_RADIUS_METERS = 2000
 const MAX_RADIUS_METERS = 8000
+
+const inputClass =
+  'w-full rounded-sm border border-rule bg-paper-warm px-3 py-2 text-ink outline-none ' +
+  'transition placeholder:text-ink-faint focus:border-accent'
+
+const kickerClass = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-faint'
 
 type RunState =
   | { status: 'idle' }
@@ -65,6 +67,15 @@ type RunState =
       radiusMeters: number
     }
 
+function SectionHead({ num, title }: { num: string; title: string }) {
+  return (
+    <div className="flex items-baseline gap-4 border-b border-rule pb-2">
+      <span className="font-mono text-[0.7rem] tracking-[0.2em] text-accent-ink">{num}</span>
+      <h2 className="font-serif text-lg font-normal tracking-tight">{title}</h2>
+    </div>
+  )
+}
+
 function Field({
   label,
   hint,
@@ -77,11 +88,13 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
-      <span className="font-medium">{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className={kickerClass}>{label}</span>
       {children}
-      {hint && !error && <span className="text-xs opacity-60">{hint}</span>}
-      {error && <span className="text-xs text-red-600 dark:text-red-400">{error}</span>}
+      {hint && !error && (
+        <span className="font-mono text-[0.7rem] tracking-wide text-ink-faint">{hint}</span>
+      )}
+      {error && <span className="text-xs text-red-700 dark:text-red-400">{error}</span>}
     </label>
   )
 }
@@ -188,10 +201,10 @@ export default function Planner() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <form onSubmit={onSubmit} className="flex flex-col gap-6">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium">What&rsquo;s the session?</legend>
+    <div className="flex flex-col gap-10">
+      <form onSubmit={onSubmit} className="flex flex-col gap-8">
+        <section className="flex flex-col gap-4">
+          <SectionHead num="01" title="The session" />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {SESSION_TYPES.map((t) => {
               const isSelected = values.type === t.value
@@ -202,109 +215,115 @@ export default function Planner() {
                   onClick={() => setField('type', t.value)}
                   aria-pressed={isSelected}
                   className={
-                    'rounded-lg border px-3 py-2 text-left transition ' +
+                    'rounded-sm border px-3 py-2 text-left transition ' +
                     (isSelected
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-black/15 dark:border-white/20 hover:border-black/40 dark:hover:border-white/40')
+                      ? 'border-accent bg-accent text-paper'
+                      : 'border-rule hover:border-accent')
                   }
                 >
                   <span className="block text-sm font-semibold">{t.label}</span>
-                  <span className="block text-xs opacity-70">{t.blurb}</span>
+                  <span
+                    className={
+                      'block text-xs ' + (isSelected ? 'text-paper/75' : 'text-ink-faint')
+                    }
+                  >
+                    {t.blurb}
+                  </span>
                 </button>
               )
             })}
           </div>
-        </fieldset>
 
-        {(values.type === 'easy' || values.type === 'long') && (
-          <Field label="Distance" hint="in kilometres" error={errors.distanceKm}>
-            <input
-              className={inputClass}
-              inputMode="decimal"
-              placeholder="e.g. 8"
-              value={values.distanceKm}
-              onChange={(e) => setField('distanceKm', e.target.value)}
-            />
-          </Field>
-        )}
-
-        {values.type === 'tempo' && (
-          <Field label="Tempo distance" hint="in kilometres" error={errors.tempoKm}>
-            <input
-              className={inputClass}
-              inputMode="decimal"
-              placeholder="e.g. 5"
-              value={values.tempoKm}
-              onChange={(e) => setField('tempoKm', e.target.value)}
-            />
-          </Field>
-        )}
-
-        {values.type === 'intervals' && (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Reps" error={errors.reps}>
+          {(values.type === 'easy' || values.type === 'long') && (
+            <Field label="Distance" hint="in kilometres" error={errors.distanceKm}>
               <input
                 className={inputClass}
-                inputMode="numeric"
-                placeholder="e.g. 6"
-                value={values.reps}
-                onChange={(e) => setField('reps', e.target.value)}
-              />
-            </Field>
-            <Field label="Rep length" hint="in metres" error={errors.repMeters}>
-              <input
-                className={inputClass}
-                inputMode="numeric"
-                placeholder="e.g. 800"
-                value={values.repMeters}
-                onChange={(e) => setField('repMeters', e.target.value)}
-              />
-            </Field>
-            <Field label="Recovery">
-              <select
-                className={inputClass}
-                value={values.recovery}
-                onChange={(e) =>
-                  setField('recovery', e.target.value === 'static' ? 'static' : 'jog')
-                }
-              >
-                <option value="jog">Jog</option>
-                <option value="static">Standing</option>
-              </select>
-            </Field>
-          </div>
-        )}
-
-        {values.type === 'hills' && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Reps" error={errors.reps}>
-              <input
-                className={inputClass}
-                inputMode="numeric"
+                inputMode="decimal"
                 placeholder="e.g. 8"
-                value={values.reps}
-                onChange={(e) => setField('reps', e.target.value)}
+                value={values.distanceKm}
+                onChange={(e) => setField('distanceKm', e.target.value)}
               />
             </Field>
-            <Field label="Hill length" hint="in metres" error={errors.hillMeters}>
+          )}
+
+          {values.type === 'tempo' && (
+            <Field label="Tempo distance" hint="in kilometres" error={errors.tempoKm}>
               <input
                 className={inputClass}
-                inputMode="numeric"
-                placeholder="e.g. 150"
-                value={values.hillMeters}
-                onChange={(e) => setField('hillMeters', e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 5"
+                value={values.tempoKm}
+                onChange={(e) => setField('tempoKm', e.target.value)}
               />
             </Field>
-          </div>
-        )}
+          )}
 
-        <fieldset className="flex flex-col gap-3">
-          <legend className="mb-1 text-sm font-medium">Where do you start?</legend>
+          {values.type === 'intervals' && (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Reps" error={errors.reps}>
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder="e.g. 6"
+                  value={values.reps}
+                  onChange={(e) => setField('reps', e.target.value)}
+                />
+              </Field>
+              <Field label="Rep length" hint="in metres" error={errors.repMeters}>
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder="e.g. 800"
+                  value={values.repMeters}
+                  onChange={(e) => setField('repMeters', e.target.value)}
+                />
+              </Field>
+              <Field label="Recovery">
+                <select
+                  className={inputClass}
+                  value={values.recovery}
+                  onChange={(e) =>
+                    setField('recovery', e.target.value === 'static' ? 'static' : 'jog')
+                  }
+                >
+                  <option value="jog">Jog</option>
+                  <option value="static">Standing</option>
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {values.type === 'hills' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Reps" error={errors.reps}>
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder="e.g. 8"
+                  value={values.reps}
+                  onChange={(e) => setField('reps', e.target.value)}
+                />
+              </Field>
+              <Field label="Hill length" hint="in metres" error={errors.hillMeters}>
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder="e.g. 150"
+                  value={values.hillMeters}
+                  onChange={(e) => setField('hillMeters', e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <SectionHead num="02" title="Your start" />
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={useMyLocation}
-              className="rounded-lg border border-black/15 dark:border-white/20 px-4 py-2 text-sm font-medium hover:border-black/40 dark:hover:border-white/40"
+              className="rounded-sm border border-rule px-4 py-2 text-sm font-medium transition hover:border-accent"
             >
               Use my location
             </button>
@@ -319,23 +338,27 @@ export default function Planner() {
                 type="button"
                 onClick={lookupPostcode}
                 disabled={lookingUp}
-                className="rounded-lg border border-black/15 dark:border-white/20 px-4 py-2 text-sm font-medium hover:border-black/40 dark:hover:border-white/40 disabled:opacity-50"
+                className="rounded-sm border border-rule px-4 py-2 text-sm font-medium transition hover:border-accent disabled:opacity-50"
               >
                 {lookingUp ? 'Looking up…' : 'Set'}
               </button>
             </div>
           </div>
-          {startStatus && <p className="text-xs opacity-70">{startStatus}</p>}
-        </fieldset>
+          {startStatus && (
+            <p className="font-mono text-[0.7rem] tracking-wide text-ink-faint">{startStatus}</p>
+          )}
+        </section>
 
-        <button
-          type="submit"
-          disabled={run.status === 'loading'}
-          className="rounded-full bg-foreground text-background px-6 py-3 text-sm font-semibold hover:opacity-90 disabled:opacity-50"
-        >
-          {run.status === 'loading' ? 'Finding routes…' : 'Find my route'}
-        </button>
-        {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
+        <div className="flex flex-col gap-3">
+          <button
+            type="submit"
+            disabled={run.status === 'loading'}
+            className="self-start rounded-sm bg-accent px-7 py-3 font-mono text-xs uppercase tracking-[0.18em] text-paper transition hover:bg-accent-ink disabled:opacity-50"
+          >
+            {run.status === 'loading' ? 'Finding routes…' : 'Find my route'}
+          </button>
+          {formError && <p className="text-sm text-red-700 dark:text-red-400">{formError}</p>}
+        </div>
       </form>
 
       <Results
@@ -370,17 +393,21 @@ function Results({
 }) {
   if (run.status === 'idle') return null
   if (run.status === 'loading') {
-    return <p className="text-sm opacity-70">Searching for suitable ground near your start…</p>
+    return (
+      <p className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-faint">
+        Searching for suitable ground near your start…
+      </p>
+    )
   }
   if (run.status === 'error') {
-    return <p className="text-sm text-red-600 dark:text-red-400">{run.message}</p>
+    return <p className="text-sm text-red-700 dark:text-red-400">{run.message}</p>
   }
 
   const { session, start, segments } = run
   if (segments.length === 0) {
     return (
-      <div className="flex flex-col gap-3 text-sm">
-        <p className="opacity-70">
+      <div className="flex flex-col gap-3 border-l-2 border-accent bg-paper-warm px-4 py-4">
+        <p className="text-sm text-ink-soft">
           No stretches suited to a {sessionSummary(session).toLowerCase()} turned up within{' '}
           {formatKm(run.radiusMeters)} of your start. You could search a wider area, choose a
           different start point, or try another session type.
@@ -389,7 +416,7 @@ function Results({
           <button
             type="button"
             onClick={onWiden}
-            className="self-start rounded-full border border-foreground px-5 py-2 text-sm font-semibold hover:bg-foreground hover:text-background"
+            className="self-start rounded-sm border border-accent px-5 py-2 font-mono text-xs uppercase tracking-[0.16em] text-accent-ink transition hover:bg-accent hover:text-paper"
           >
             Search a wider area
           </button>
@@ -398,20 +425,27 @@ function Results({
     )
   }
 
-  const current = segments[Math.min(selected, segments.length - 1)]
+  const index = Math.min(selected, segments.length - 1)
+  const current = segments[index]
   const count = segments.length
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold">
-        {count} {count > 1 ? 'stretches' : 'stretch'} for {sessionSummary(session)}
-      </h2>
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-rule pb-2">
+        <span className="font-mono text-[0.7rem] tracking-[0.2em] text-accent-ink">03</span>
+        <h2 className="font-serif text-lg font-normal tracking-tight">
+          {count} {count > 1 ? 'stretches' : 'stretch'}
+        </h2>
+        <span className="ml-auto font-mono text-[0.7rem] tracking-wide text-ink-faint">
+          for {sessionSummary(session)}
+        </span>
+      </div>
 
       <RouteMap start={start} route={current.points} />
 
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col">
         {segments.map((segment, i) => {
-          const isCurrent = i === Math.min(selected, segments.length - 1)
+          const isCurrent = i === index
           return (
             <li key={i}>
               <button
@@ -419,18 +453,22 @@ function Results({
                 onClick={() => onSelect(i)}
                 aria-pressed={isCurrent}
                 className={
-                  'w-full rounded-lg border px-4 py-3 text-left text-sm transition ' +
+                  'flex w-full items-baseline gap-4 border-l-2 px-3 py-3 text-left transition ' +
                   (isCurrent
-                    ? 'border-foreground'
-                    : 'border-black/10 dark:border-white/15 hover:border-black/30 dark:hover:border-white/30')
+                    ? 'border-accent bg-paper-warm'
+                    : 'border-transparent hover:bg-paper-warm/60')
                 }
               >
-                <span className="font-medium">Option {i + 1}</span>
-                <span className="opacity-70">
-                  {' '}
-                  · {formatKm(segment.lengthMeters)} · {formatPercent01(segment.minQuietness)} quiet
-                  · {formatGradient(segment.avgAbsGradientPercent)} grade ·{' '}
-                  {formatKm(segment.distanceFromStartMeters)} away
+                <span className="font-mono text-[0.7rem] tracking-widest text-ink-faint">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-serif text-base">{formatKm(segment.lengthMeters)}</span>
+                  <span className="tabular font-mono text-[0.7rem] tracking-wide text-ink-soft">
+                    {formatPercent01(segment.minQuietness)} quiet ·{' '}
+                    {formatGradient(segment.avgAbsGradientPercent)} grade ·{' '}
+                    {formatKm(segment.distanceFromStartMeters)} away
+                  </span>
                 </span>
               </button>
             </li>
@@ -441,11 +479,11 @@ function Results({
       <button
         type="button"
         onClick={() => downloadGpx(session, current)}
-        className="self-start rounded-full border border-foreground px-6 py-3 text-sm font-semibold hover:bg-foreground hover:text-background"
+        className="self-start rounded-sm border border-ink px-6 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink transition hover:bg-ink hover:text-paper"
       >
         Download GPX
       </button>
-      <p className="text-xs opacity-60">
+      <p className="font-mono text-[0.7rem] leading-relaxed tracking-wide text-ink-faint">
         Map data © OpenStreetMap contributors. This is the session&rsquo;s work stretch — the ground
         that suits the session, not yet a full loop from your door. Connecting it into a door-to-door
         route comes next (v1.1).
