@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { Session } from '@/lib/domain/types'
 import type { LatLon } from '@/lib/engine/types'
@@ -54,6 +54,34 @@ const inputClass =
   'transition placeholder:text-ink-faint focus:border-accent'
 
 const kickerClass = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-faint'
+
+// Route search is network-bound and slow (Overpass + elevation), so it gets an
+// indeterminate bar and rotating status lines rather than a frozen button.
+const SEARCH_PHRASES = [
+  'Scanning the streets around you…',
+  'Pulling the map from OpenStreetMap…',
+  'Tracing quiet, runnable ground…',
+  'Reading the gradients…',
+  'Weighing up your options…',
+  'Ranking the best stretches…',
+  'Almost there…',
+]
+
+function SearchProgress() {
+  const [i, setI] = useState(() => Math.floor(Math.random() * SEARCH_PHRASES.length))
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % SEARCH_PHRASES.length), 2200)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-live="polite">
+      <div className="progress-track h-[3px] w-full rounded bg-paper-deep" aria-hidden>
+        <span className="bg-accent" />
+      </div>
+      <p className={kickerClass}>{SEARCH_PHRASES[i]}</p>
+    </div>
+  )
+}
 
 type RunState =
   | { status: 'idle' }
@@ -393,11 +421,7 @@ function Results({
 }) {
   if (run.status === 'idle') return null
   if (run.status === 'loading') {
-    return (
-      <p className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink-faint">
-        Searching for suitable ground near your start…
-      </p>
-    )
+    return <SearchProgress />
   }
   if (run.status === 'error') {
     return <p className="text-sm text-red-700 dark:text-red-400">{run.message}</p>

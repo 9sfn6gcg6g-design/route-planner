@@ -59,3 +59,38 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Indeterminate progress bar for the (slow, network-bound) route search. */
+.progress-track {
+  position: relative;
+  overflow: hidden;
+}
+.progress-track > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  animation: progress-slide 1.5s ease-in-out infinite;
+}
+@keyframes progress-slide {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    left: 25%;
+    width: 55%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-track > span {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.6;
+  }
+}
