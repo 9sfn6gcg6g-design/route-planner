@@ -55,4 +55,71 @@ describe('parseOrsResponse', () => {
     expect(() => parseOrsResponse({ error: 'x' })).toThrow(/features/)
     expect(() => parseOrsResponse({ features: [] })).toThrow(/features/)
   })
+
+  it('throws when feature is present but missing geometry.coordinates', () => {
+    const response = {
+      features: [
+        {
+          type: 'Feature',
+          properties: { summary: { distance: 1176.3 } },
+          geometry: { type: 'LineString' },
+        },
+      ],
+    }
+    expect(() => parseOrsResponse(response)).toThrow(/geometry coordinates or summary distance/)
+  })
+
+  it('throws when feature is present but coordinates array is too short', () => {
+    const response = {
+      features: [
+        {
+          type: 'Feature',
+          properties: { summary: { distance: 1176.3 } },
+          geometry: {
+            type: 'LineString',
+            coordinates: [[-2.5879, 51.4545]],
+          },
+        },
+      ],
+    }
+    expect(() => parseOrsResponse(response)).toThrow(/geometry coordinates or summary distance/)
+  })
+
+  it('throws when feature is present but missing properties.summary.distance', () => {
+    const response = {
+      features: [
+        {
+          type: 'Feature',
+          properties: { summary: {} },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-2.5879, 51.4545],
+              [-2.595, 51.46],
+            ],
+          },
+        },
+      ],
+    }
+    expect(() => parseOrsResponse(response)).toThrow(/geometry coordinates or summary distance/)
+  })
+
+  it('throws when feature is present but distance is non-numeric', () => {
+    const response = {
+      features: [
+        {
+          type: 'Feature',
+          properties: { summary: { distance: 'not-a-number' } },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-2.5879, 51.4545],
+              [-2.595, 51.46],
+            ],
+          },
+        },
+      ],
+    }
+    expect(() => parseOrsResponse(response)).toThrow(/geometry coordinates or summary distance/)
+  })
 })
