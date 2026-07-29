@@ -23,11 +23,12 @@ describe('terrainRequirementsFor', () => {
     expect(req.minUninterruptedMeters).toBe(300)
   })
 
-  it('tempo wants continuity via junction density, not a literal uninterrupted stretch', () => {
-    const req = terrainRequirementsFor({ type: 'tempo', tempoMeters: 5000 })
-    expect(req.minUninterruptedMeters).toBeNull()
-    expect(req.maxJunctionsPerKm).toBeLessThanOrEqual(2)
-    expect(req.surface).toBe('paved')
+  it('tempo requires an uninterrupted stretch of the tempo distance capped at 1.5km', () => {
+    const long = terrainRequirementsFor({ type: 'tempo', tempoMeters: 5000 })
+    expect(long.minUninterruptedMeters).toBe(1500)
+    const short = terrainRequirementsFor({ type: 'tempo', tempoMeters: 1000 })
+    expect(short.minUninterruptedMeters).toBe(1000)
+    expect(long.surface).toBe('paved')
   })
 
   it('easy runs are the most permissive profile', () => {

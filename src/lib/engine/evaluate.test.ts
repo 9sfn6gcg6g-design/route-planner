@@ -34,7 +34,7 @@ function chain(edges: RunEdge[]): Chain {
 const intervals: TerrainRequirements = {
   maxAvgGradientPercent: 1,
   minAvgGradientPercent: null,
-  maxJunctionsPerKm: 1,
+  maxJunctionsPerKm: 6,
   minQuietness: 0.7,
   surface: 'paved',
   minUninterruptedMeters: 800,
@@ -43,7 +43,7 @@ const intervals: TerrainRequirements = {
 const hills: TerrainRequirements = {
   maxAvgGradientPercent: 15,
   minAvgGradientPercent: 4,
-  maxJunctionsPerKm: 2,
+  maxJunctionsPerKm: 6,
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
@@ -120,5 +120,21 @@ describe('scoring', () => {
     const steep = evaluateChain(chain([edge(500, 0.9, 'paved')]), hills, 9)
     const gentle = evaluateChain(chain([edge(500, 0.9, 'paved')]), hills, 5)
     expect(steep.score).toBeGreaterThan(gentle.score)
+  })
+})
+
+describe('junction density', () => {
+  it('fails a chain with too many tolerated junctions per km', () => {
+    const c = chain([edge(1000, 0.9, 'paved')])
+    c.toleratedJunctionNodeIds = [1, 2, 3, 4, 5, 6, 7]
+    const result = evaluateChain(c, intervals, null)
+    expect(result.passes).toBe(false)
+    expect(result.failures.join(' ')).toMatch(/junction/i)
+  })
+
+  it('passes a chain with acceptable tolerated-junction density', () => {
+    const c = chain([edge(1000, 0.9, 'paved')])
+    c.toleratedJunctionNodeIds = [1, 2, 3]
+    expect(evaluateChain(c, intervals, null).passes).toBe(true)
   })
 })
