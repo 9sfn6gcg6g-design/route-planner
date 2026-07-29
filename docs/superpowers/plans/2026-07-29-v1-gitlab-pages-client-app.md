@@ -76,7 +76,7 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 
 ## Slice 2 — GPX writer (pure)
 
-- [ ] `src/lib/export/gpx.ts` + test: pure `LatLon[] → GPX track string`, one
+- [x] `src/lib/export/gpx.ts` + test: pure `LatLon[] → GPX track string`, one
       continuous track (decision 4). Fixture-based test. Browser download helper lives
       in the UI layer, not here.
 
