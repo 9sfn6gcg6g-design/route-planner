@@ -102,8 +102,11 @@ MapLibre GL the alternative) with keyless OSM raster tiles. No auth/db/routing S
 
 ## Slice 5 — Map preview + results (integration)
 
-- [ ] Add the map library; render a Leaflet map with OSM raster tiles via
-      `next/dynamic` (`ssr: false`), with OSM/ODbL attribution.
-- [ ] Results view: ranked segments with stats (length, `minQuietness`,
-      `avgAbsGradientPercent`); select one → draw its polyline → **Download GPX**.
-- [ ] Wire form → `planRoute` → results end to end.
+- [x] Add the map library (react-leaflet + Leaflet, keyless OSM raster tiles); render
+      it via `next/dynamic` (`ssr: false`), with OSM attribution. `src/app/route-map.tsx`.
+- [x] Results view: ranked segments with stats (length, `minQuietness`,
+      `avgAbsGradientPercent`, distance away); select one → draw its polyline →
+      **Download GPX** (lat/lon-only track for v1). Presentation helpers in
+      `src/lib/results/format.ts` (tested).
+- [x] Wire form → `planRoute` (live Overpass + Open-Meteo from the browser) → results
+      end to end.
