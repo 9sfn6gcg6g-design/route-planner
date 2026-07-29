@@ -26,9 +26,10 @@ everything.
 5. Routes are loops from the runner's door (geolocate + pin/postcode fallback); connectors default to ~15% of work distance, clamped 1–2km, tunable.
 6. Engine is hybrid: our own work-segment finder (OSM + open elevation, scored graph) + hosted A→B routing for connectors (Openrouteservice). Elevation: Open-Meteo.
 7. Street imagery is post-MVP, Mapillary only (never scraped Street View), computed offline and cached — hence pluggable signals.
-8. Accounts ARE in the MVP and hold exactly three things: saved routes, saved start points, post-run route feedback (ground truth for segment quality). Clerk + Neon via Vercel Marketplace.
+8. Accounts are **deferred to post-v1**; the v1 (GitLab Pages, decision 11) is account-less. When they land, accounts hold exactly three things — saved routes, saved start points, post-run route feedback (ground truth for segment quality) — on Clerk + Neon, which is why a server host (Vercel) returns post-v1. *(Amended 2026-07-29: the original MVP had accounts in scope; v1 dropped them to ship client-only.)*
 9. Built for Liam first (UK-first, free tiers), architected to scale into a shippable product.
 10. The compiler enforces structural invariants — distances (`distanceMeters`, `tempoMeters`, `repMeters`, `hillMeters`) must be finite positive numbers, `reps` must be an integer >= 1, and an explicit `connectorMeters` override must be finite and positive — by throwing. This is not the place for friendly, user-facing validation messages or form constraints (min/max fields, helpful copy); that belongs at the form/API boundary that sits in front of the compiler. The compiler's contract is: garbage in throws, never silently produces a corrupt plan.
+11. **v1 ships client-only as a static export on GitLab Pages.** Overpass, Open-Meteo elevation, and postcode geocoding (postcodes.io) run in the browser — all keyless and CORS-enabled; the start point comes from browser Geolocation with a UK-postcode fallback. v1 shows the session's **work segment(s)** with map preview + GPX download; **door-to-door loop assembly and Openrouteservice connectors (decisions 5/6) are out of v1** — a v1.1 follow-up — so no API key ships in client JS. Server-backed pieces (accounts, decision 8; a Vercel host, decision 9's scaling path) return post-v1. *(Added 2026-07-29.)*
 
 ---
 
