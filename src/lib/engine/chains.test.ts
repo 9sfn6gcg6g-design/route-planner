@@ -134,15 +134,68 @@ describe('buildChains', () => {
     expect(streetChain!.toleratedJunctionNodeIds).toEqual([11])
   })
 
-  it('terminates on an ambiguous same-class fork', () => {
+  it('merges a straightforward same-class fork (no bearing fork before bearing logic)', () => {
     const a: OsmWay = { id: 1, tags: { highway: 'footway' }, nodeIds: [10, 11], points: [{ lat: 51.45, lon: -2.58 }, { lat: 51.451, lon: -2.58 }] }
     const b: OsmWay = { id: 2, tags: { highway: 'footway' }, nodeIds: [11, 12], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.452, lon: -2.58 }] }
     const c: OsmWay = { id: 3, tags: { highway: 'footway' }, nodeIds: [11, 13], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.451, lon: -2.579 }] }
     const chains = buildChains(buildGraph([a, b, c]))
+    expect(chains).toHaveLength(2)
+    const merged = chains.find((ch) => ch.edges.length === 2)
+    expect(merged).toBeDefined()
+    expect(merged!.toleratedJunctionNodeIds).toEqual([11])
+    const separate = chains.find((ch) => ch.edges.length === 1)
+    expect(separate).toBeDefined()
+    expect(separate!.toleratedJunctionNodeIds).toEqual([])
+  })
+
+  it('continues through a same-class fork along the straightest branch', () => {
+    // footways: a,b colinear heading north; c branches due east at node 11
+    const a: OsmWay = { id: 1, tags: { highway: 'footway' }, nodeIds: [10, 11], points: [{ lat: 51.45, lon: -2.58 }, { lat: 51.451, lon: -2.58 }] }
+    const b: OsmWay = { id: 2, tags: { highway: 'footway' }, nodeIds: [11, 12], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.452, lon: -2.58 }] }
+    const c: OsmWay = { id: 3, tags: { highway: 'footway' }, nodeIds: [11, 13], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.451, lon: -2.579 }] }
+    const chains = buildChains(buildGraph([a, b, c]))
+    expect(chains).toHaveLength(2)
+    const main = chains.find((ch) => ch.edges.length === 2)
+    expect(main).toBeDefined()
+    expect(main!.toleratedJunctionNodeIds).toEqual([11])
+    const lats = main!.points.map((p) => p.lat)
+    expect(lats).toEqual([...lats].sort((x, y) => x - y))
+  })
+
+  it('still cuts a symmetric same-class Y-fork (no unique straightest)', () => {
+    const a: OsmWay = { id: 1, tags: { highway: 'footway' }, nodeIds: [10, 11], points: [{ lat: 51.45, lon: -2.58 }, { lat: 51.451, lon: -2.58 }] }
+    const b: OsmWay = { id: 2, tags: { highway: 'footway' }, nodeIds: [11, 12], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.4517, lon: -2.579 }] }
+    const c: OsmWay = { id: 3, tags: { highway: 'footway' }, nodeIds: [11, 13], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.4517, lon: -2.581 }] }
+    const chains = buildChains(buildGraph([a, b, c]))
     expect(chains).toHaveLength(3)
-    for (const ch of chains) {
-      expect(ch.toleratedJunctionNodeIds).toEqual([])
+    for (const ch of chains) expect(ch.toleratedJunctionNodeIds).toEqual([])
+  })
+
+  it('cuts a fork whose straightest branch still bends beyond the cap', () => {
+    // both branches head back southish (>45 degrees off the northward arrival)
+    const a: OsmWay = { id: 1, tags: { highway: 'footway' }, nodeIds: [10, 11], points: [{ lat: 51.45, lon: -2.58 }, { lat: 51.451, lon: -2.58 }] }
+    const b: OsmWay = { id: 2, tags: { highway: 'footway' }, nodeIds: [11, 12], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.4505, lon: -2.579 }] }
+    const c: OsmWay = { id: 3, tags: { highway: 'footway' }, nodeIds: [11, 13], points: [{ lat: 51.451, lon: -2.58 }, { lat: 51.4503, lon: -2.5815 }] }
+    const chains = buildChains(buildGraph([a, b, c]))
+    expect(chains).toHaveLength(3)
+  })
+
+  it('treats a pedestrian join as minor', () => {
+    const street = way(1, [10, 11, 12], [51.45, 51.451, 51.452])
+    const plaza: OsmWay = {
+      id: 2,
+      tags: { highway: 'pedestrian' },
+      nodeIds: [11, 20],
+      points: [
+        { lat: 51.451, lon: -2.5801 },
+        { lat: 51.451, lon: -2.579 },
+      ],
     }
+    const chains = buildChains(buildGraph([street, plaza]))
+    expect(chains).toHaveLength(2)
+    const streetChain = chains.find((c) => c.edges[0].highway === 'residential')
+    expect(streetChain!.edges).toHaveLength(2)
+    expect(streetChain!.toleratedJunctionNodeIds).toEqual([11])
   })
 
   it('still terminates at a major crossing', () => {

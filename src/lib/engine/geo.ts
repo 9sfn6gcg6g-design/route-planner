@@ -35,3 +35,20 @@ export function cumulativeMeters(points: LatLon[]): number[] {
   }
   return cum
 }
+
+/** Initial great-circle bearing from a to b, degrees clockwise from north. */
+export function bearingDegrees(a: LatLon, b: LatLon): number {
+  const lat1 = toRadians(a.lat)
+  const lat2 = toRadians(b.lat)
+  const dLon = toRadians(b.lon - a.lon)
+  const y = Math.sin(dLon) * Math.cos(lat2)
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+/** Smallest angle between two compass bearings, in [0, 180]. */
+export function angularDifferenceDegrees(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360
+  return d > 180 ? 360 - d : d
+}
