@@ -62,12 +62,20 @@ describe('generateRoute — stretch sessions', () => {
     const generated = await generateRoute(intervalsSession, start, deps)
     // fetch radius covers the prefilter radius plus the stretch requirement
     expect(recorded.waysCalls).toHaveLength(1)
+    expect(recorded.waysCalls[0].center).toEqual(start)
     expect(recorded.waysCalls[0].radius).toBe(2000 + 1000)
     expect(generated.segment).not.toBeNull()
     expect(generated.route.phases.map((p) => p.kind)).toEqual(['warmup', 'work', 'cooldown'])
     // warmup goes from the runner's start to the work entry
     expect(recorded.footCalls).toHaveLength(2)
     expect(recorded.footCalls[0].from).toEqual(start)
+    // work geometry entry point for this fixture: first point of the 10-point straight line
+    // (6 reps × 800m = 4800m needed; ~1000m segment requires 5 passes; odd passes end at far point)
+    const expectedEntry = { lat: 51.45, lon: -2.58 }
+    expect(recorded.footCalls[0].to).toEqual(expectedEntry)
+    // work geometry exit point: for 5 passes on non-cycle, ends at far point (point 9)
+    const expectedExit = { lat: 51.459, lon: -2.58 }
+    expect(recorded.footCalls[1].from).toEqual(expectedExit)
     // cooldown returns home
     expect(recorded.footCalls[1].to).toEqual(start)
     expect(generated.gpx).toContain('<name>Work start</name>')
