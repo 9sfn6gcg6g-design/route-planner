@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cumulativeMeters, haversineMeters, pathLengthMeters } from './geo'
+import { angularDifferenceDegrees, bearingDegrees, cumulativeMeters, haversineMeters, pathLengthMeters } from './geo'
 
 describe('haversineMeters', () => {
   it('measures one degree of latitude as ~111.2km', () => {
@@ -47,5 +47,22 @@ describe('cumulativeMeters', () => {
     expect(cum[2]).toBeCloseTo(pathLengthMeters(pts), 6)
     expect(cum[1]).toBeGreaterThan(0)
     expect(cum[1]).toBeLessThan(cum[2])
+  })
+})
+
+describe('bearingDegrees', () => {
+  it('points north, east, and south correctly', () => {
+    expect(bearingDegrees({ lat: 51, lon: -2.5 }, { lat: 52, lon: -2.5 })).toBeCloseTo(0, 0)
+    expect(bearingDegrees({ lat: 51, lon: -2.5 }, { lat: 51, lon: -2.4 })).toBeCloseTo(90, 0)
+    expect(bearingDegrees({ lat: 52, lon: -2.5 }, { lat: 51, lon: -2.5 })).toBeCloseTo(180, 0)
+  })
+})
+
+describe('angularDifferenceDegrees', () => {
+  it('wraps around the compass', () => {
+    expect(angularDifferenceDegrees(350, 10)).toBe(20)
+    expect(angularDifferenceDegrees(10, 350)).toBe(20)
+    expect(angularDifferenceDegrees(90, 90)).toBe(0)
+    expect(angularDifferenceDegrees(0, 180)).toBe(180)
   })
 })
