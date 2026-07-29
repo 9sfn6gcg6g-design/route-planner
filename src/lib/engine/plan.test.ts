@@ -57,7 +57,11 @@ const intervalsSession: Session = { type: 'intervals', reps: 6, repMeters: 800, 
 describe('generateRoute — stretch sessions', () => {
   it('generates warmup, laps, cooldown, and gpx for intervals', async () => {
     const { deps, recorded } = fakeDeps([
-      straightWay(1, 51.45, -2.58, 10, 'residential', 'asphalt'),
+      // 12-node way from {51.46, -2.57} → {51.47, -2.57} (~1223m).
+      // Work target: 6800m (6 reps × 800m + recoveries).
+      // Passes: round(6800/1223) = 6 (even).
+      // Even passes → exits at near point (same as entry), diverging from raw chain's far end.
+      straightWay(1, 51.46, -2.57, 12, 'residential', 'asphalt'),
     ])
     const generated = await generateRoute(intervalsSession, start, deps)
     // fetch radius covers the prefilter radius plus the stretch requirement
@@ -69,13 +73,11 @@ describe('generateRoute — stretch sessions', () => {
     // warmup goes from the runner's start to the work entry
     expect(recorded.footCalls).toHaveLength(2)
     expect(recorded.footCalls[0].from).toEqual(start)
-    // work geometry entry point for this fixture: first point of the 10-point straight line
-    // (6 reps × 800m = 4800m needed; ~1000m segment requires 5 passes; odd passes end at far point)
-    const expectedEntry = { lat: 51.45, lon: -2.58 }
+    // work geometry entry: first point of way (moved away from start to catch entry=start mutant)
+    const expectedEntry = { lat: 51.46, lon: -2.57 }
     expect(recorded.footCalls[0].to).toEqual(expectedEntry)
-    // work geometry exit point: for 5 passes on non-cycle, ends at far point (point 9)
-    const expectedExit = { lat: 51.459, lon: -2.58 }
-    expect(recorded.footCalls[1].from).toEqual(expectedExit)
+    // work geometry exit: for even passes (6), returns to entry point (near), not raw chain's far end
+    expect(recorded.footCalls[1].from).toEqual(expectedEntry)
     // cooldown returns home
     expect(recorded.footCalls[1].to).toEqual(start)
     expect(generated.gpx).toContain('<name>Work start</name>')
