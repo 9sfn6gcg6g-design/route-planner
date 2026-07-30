@@ -24,6 +24,16 @@ function straightWay(
   }
 }
 
+/** A way from explicit [lat, lon] points, so junction bearings are controlled. */
+function pointWay(id: number, nodeIds: number[], pts: Array<[number, number]>): OsmWay {
+  return {
+    id,
+    tags: { highway: 'residential', surface: 'asphalt' },
+    nodeIds,
+    points: pts.map(([lat, lon]) => ({ lat, lon })),
+  }
+}
+
 const start: LatLon = { lat: 51.45, lon: -2.58 }
 const flatSampler: ElevationSampler = async (points) => points.map(() => 10)
 
@@ -101,5 +111,25 @@ describe('planRoute', () => {
     )
     const result = await planRoute(easy, start, depsFor(ways), { maxResults: 2 })
     expect(result.segments).toHaveLength(2)
+  })
+
+  it('threads the work-phase distance into conversational assembly (decision 17)', async () => {
+    // A→Jn ~556m ends at a degree-3 junction with left/right branches ~485m,
+    // so corridors terminate at Jn and only decision-15 assembly goes further.
+    const A: [number, number] = [51.45, -2.58]
+    const Jn: [number, number] = [51.455, -2.58]
+    const W: [number, number] = [51.455, -2.587]
+    const E: [number, number] = [51.455, -2.573]
+    const ways = [
+      pointWay(11, [10, 20], [A, Jn]),
+      pointWay(12, [20, 30], [Jn, W]),
+      pointWay(13, [20, 40], [Jn, E]),
+    ]
+    // 450m easy: every corridor already exceeds the target — no extension.
+    const short = await planRoute({ type: 'easy', distanceMeters: 450 }, start, depsFor(ways))
+    expect(Math.max(...short.segments.map((s) => s.lengthMeters))).toBeLessThan(700)
+    // 10km easy: assembly extends across the junction toward the distance.
+    const long = await planRoute({ type: 'easy', distanceMeters: 10000 }, start, depsFor(ways))
+    expect(Math.max(...long.segments.map((s) => s.lengthMeters))).toBeGreaterThan(700)
   })
 })
