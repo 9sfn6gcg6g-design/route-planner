@@ -7,6 +7,9 @@ import type { LatLon } from '@/lib/engine/types'
 import type { WorkSegment } from '@/lib/engine/finder'
 import { fetchWays } from '@/lib/engine/overpass'
 import { fetchElevations } from '@/lib/engine/elevation'
+import { createTerrariumSampler, fetchTerrariumTile } from '@/lib/engine/terrarium'
+import { fetchOpenElevations } from '@/lib/engine/open-elevation'
+import { withElevationFailover } from '@/lib/engine/elevation-chain'
 import { geocodePostcode, PostcodeNotFoundError } from '@/lib/engine/geocode'
 import { planRoute } from '@/lib/planner/plan-route'
 import { buildGpxTrack } from '@/lib/export/gpx'
@@ -49,6 +52,19 @@ const EMPTY_VALUES: SessionFormValues = {
   // Pace/tempo-reps form inputs are wired in Slice 2; default keeps parse happy.
   targetPace: '',
 }
+
+/**
+ * Terrain tiles first (keyless, cached, no meaningful quota), then the two
+ * hosted APIs as fallbacks — Open-Meteo's per-coordinate quota weighting made
+ * it unusable as the sole provider (a burst of searches exhausts the hourly
+ * budget and every later search dies on its first elevation batch).
+ * Module-scoped so the tile cache survives across searches.
+ */
+const sampleElevations = withElevationFailover([
+  createTerrariumSampler(fetchTerrariumTile),
+  fetchOpenElevations,
+  fetchElevations,
+])
 
 const DEFAULT_RADIUS_METERS = 1200
 const MAX_RADIUS_METERS = 8000
@@ -243,7 +259,7 @@ export default function Planner() {
       const plan = await planRoute(
         session,
         startPoint,
-        { fetchWays, sampleElevations: fetchElevations },
+        { fetchWays, sampleElevations },
         { searchRadiusMeters: radiusMeters },
       )
       setRun({ status: 'done', session, start: startPoint, segments: plan.segments, radiusMeters })
