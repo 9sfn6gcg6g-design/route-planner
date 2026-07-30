@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { angularDifferenceDegrees, bearingDegrees, cumulativeMeters, haversineMeters, pathLengthMeters } from './geo'
+import {
+  angularDifferenceDegrees,
+  bearingDegrees,
+  classifyTurn,
+  cumulativeMeters,
+  haversineMeters,
+  pathLengthMeters,
+  signedTurnDegrees,
+} from './geo'
 
 describe('haversineMeters', () => {
   it('measures one degree of latitude as ~111.2km', () => {
@@ -64,5 +72,49 @@ describe('angularDifferenceDegrees', () => {
     expect(angularDifferenceDegrees(10, 350)).toBe(20)
     expect(angularDifferenceDegrees(90, 90)).toBe(0)
     expect(angularDifferenceDegrees(0, 180)).toBe(180)
+  })
+})
+
+describe('signedTurnDegrees', () => {
+  it('is negative for a left turn, positive for a right turn', () => {
+    expect(signedTurnDegrees(0, 90)).toBe(90) // heading north, leave east → right
+    expect(signedTurnDegrees(0, 270)).toBe(-90) // heading north, leave west → left
+    expect(signedTurnDegrees(0, 0)).toBe(0)
+  })
+
+  it('wraps across north', () => {
+    expect(signedTurnDegrees(350, 10)).toBe(20) // slight right
+    expect(signedTurnDegrees(10, 350)).toBe(-20) // slight left
+  })
+
+  it('represents a straight-back reversal at the ±180 boundary', () => {
+    // Range is [-180, 180); an exact reversal lands on -180. Sign is
+    // immaterial downstream — classifyTurn keys off magnitude.
+    expect(Math.abs(signedTurnDegrees(0, 180))).toBe(180)
+  })
+})
+
+describe('classifyTurn', () => {
+  it('calls small deviations straight', () => {
+    expect(classifyTurn(0, 0)).toBe('straight')
+    expect(classifyTurn(0, 30)).toBe('straight')
+    expect(classifyTurn(0, 330)).toBe('straight')
+  })
+
+  it('separates left from right by the sign of the turn', () => {
+    expect(classifyTurn(0, 90)).toBe('right')
+    expect(classifyTurn(0, 270)).toBe('left')
+    expect(classifyTurn(90, 0)).toBe('left')
+    expect(classifyTurn(90, 180)).toBe('right')
+  })
+
+  it('treats a near-reversal as doubling back', () => {
+    expect(classifyTurn(0, 180)).toBe('back')
+    expect(classifyTurn(0, 200)).toBe('back')
+  })
+
+  it('honours custom cone widths', () => {
+    expect(classifyTurn(0, 50, 60)).toBe('straight')
+    expect(classifyTurn(0, 50)).toBe('right')
   })
 })
