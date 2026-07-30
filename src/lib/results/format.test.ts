@@ -3,20 +3,46 @@ import type { Session } from '@/lib/domain/types'
 import {
   formatGradient,
   formatKm,
+  formatPace,
   formatPercent01,
   gpxFileName,
   sessionSummary,
 } from './format'
 
 const easy: Session = { type: 'easy', distanceMeters: 8000 }
-const tempo: Session = { type: 'tempo', tempoMeters: 5000 }
-const intervals: Session = { type: 'intervals', reps: 6, repMeters: 800, recovery: 'static' }
-const hills: Session = { type: 'hills', reps: 8, hillMeters: 150 }
+const tempo: Session = {
+  type: 'tempo',
+  reps: 1,
+  tempoMeters: 5000,
+  recovery: 'jog',
+  targetPaceSecondsPerKm: 300,
+}
+const tempoReps: Session = {
+  type: 'tempo',
+  reps: 3,
+  tempoMeters: 2000,
+  recovery: 'jog',
+  targetPaceSecondsPerKm: 285,
+}
+const intervals: Session = {
+  type: 'intervals',
+  reps: 6,
+  repMeters: 800,
+  recovery: 'static',
+  targetPaceSecondsPerKm: 270,
+}
+const hills: Session = {
+  type: 'hills',
+  reps: 8,
+  hillMeters: 150,
+  targetPaceSecondsPerKm: 300,
+}
 
 describe('sessionSummary', () => {
   it('reads naturally per session type', () => {
     expect(sessionSummary(easy)).toBe('Easy 8.0 km')
     expect(sessionSummary(tempo)).toBe('Tempo 5.0 km')
+    expect(sessionSummary(tempoReps)).toBe('3 × 2.0 km tempo')
     expect(sessionSummary(intervals)).toBe('6 × 800m intervals (static recovery)')
     expect(sessionSummary(hills)).toBe('8 × 150m hills')
   })
@@ -26,6 +52,7 @@ describe('gpxFileName', () => {
   it('is a safe, descriptive filename per session type', () => {
     expect(gpxFileName(easy)).toBe('route-easy-8km.gpx')
     expect(gpxFileName(tempo)).toBe('route-tempo-5km.gpx')
+    expect(gpxFileName(tempoReps)).toBe('route-3x2km-tempo.gpx')
     expect(gpxFileName(intervals)).toBe('route-6x800m-intervals.gpx')
     expect(gpxFileName(hills)).toBe('route-8x150m-hills.gpx')
   })
@@ -45,5 +72,11 @@ describe('number formatters', () => {
   it('formats gradient to one decimal percent', () => {
     expect(formatGradient(0)).toBe('0.0%')
     expect(formatGradient(3.42)).toBe('3.4%')
+  })
+
+  it('formats a target pace (seconds/km) as mm:ss/km', () => {
+    expect(formatPace(300)).toBe('5:00/km')
+    expect(formatPace(310)).toBe('5:10/km')
+    expect(formatPace(285)).toBe('4:45/km')
   })
 })

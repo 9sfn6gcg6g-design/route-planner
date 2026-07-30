@@ -44,6 +44,8 @@ const EMPTY_VALUES: SessionFormValues = {
   repMeters: '',
   recovery: 'jog',
   hillMeters: '',
+  // Pace/tempo-reps form inputs are wired in Slice 2; default keeps parse happy.
+  targetPace: '',
 }
 
 const DEFAULT_RADIUS_METERS = 1200

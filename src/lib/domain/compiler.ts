@@ -1,6 +1,7 @@
 import type {
   CompilerConfig,
   PhasePlan,
+  RecoveryType,
   Session,
   SessionPlan,
   WorkPattern,
@@ -40,21 +41,33 @@ function assertValidSession(session: Session): void {
       assertFinitePositive(session.distanceMeters, 'distanceMeters')
       return
     case 'tempo':
+      assertValidReps(session.reps)
       assertFinitePositive(session.tempoMeters, 'tempoMeters')
+      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
       return
     case 'intervals':
       assertValidReps(session.reps)
       assertFinitePositive(session.repMeters, 'repMeters')
+      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
       return
     case 'hills':
       assertValidReps(session.reps)
       assertFinitePositive(session.hillMeters, 'hillMeters')
+      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
       return
     default: {
       const exhaustive: never = session
       throw new Error(`Unhandled session type: ${JSON.stringify(exhaustive)}`)
     }
   }
+}
+
+/** reps × block, plus half-block jog recoveries between them (static adds none). */
+function repsWithRecovery(blockMeters: number, reps: number, recovery: RecoveryType): number {
+  const work = reps * blockMeters
+  const recoveries =
+    recovery === 'jog' ? Math.round(JOG_RECOVERY_FACTOR * blockMeters) * (reps - 1) : 0
+  return work + recoveries
 }
 
 export function workMetersFor(session: Session): number {
@@ -64,15 +77,11 @@ export function workMetersFor(session: Session): number {
     case 'long':
       return session.distanceMeters
     case 'tempo':
-      return session.tempoMeters
-    case 'intervals': {
-      const reps = session.reps * session.repMeters
-      const recoveries =
-        session.recovery === 'jog'
-          ? Math.round(JOG_RECOVERY_FACTOR * session.repMeters) * (session.reps - 1)
-          : 0
-      return reps + recoveries
-    }
+      // Reps are a workout-timing overlay on one continuous stretch (decision
+      // 14); the distance still sums blocks + jog recoveries like intervals.
+      return repsWithRecovery(session.tempoMeters, session.reps, session.recovery)
+    case 'intervals':
+      return repsWithRecovery(session.repMeters, session.reps, session.recovery)
     case 'hills':
       return session.reps * session.hillMeters * 2
   }

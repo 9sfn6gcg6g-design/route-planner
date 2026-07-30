@@ -52,7 +52,13 @@ function fakeDeps(ways: OsmWay[]): { deps: RoutePlanDeps; recorded: Recorded } {
   return { deps, recorded }
 }
 
-const intervalsSession: Session = { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' }
+const intervalsSession: Session = {
+  type: 'intervals',
+  reps: 6,
+  repMeters: 800,
+  recovery: 'jog',
+  targetPaceSecondsPerKm: 300,
+}
 
 describe('generateRoute — stretch sessions', () => {
   it('generates warmup, laps, cooldown, and gpx for intervals', async () => {

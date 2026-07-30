@@ -44,7 +44,13 @@ function depsFor(ways: OsmWay[], sampler: ElevationSampler = flatSampler): Recor
 }
 
 const easy: Session = { type: 'easy', distanceMeters: 3000 }
-const intervals: Session = { type: 'intervals', reps: 6, repMeters: 800, recovery: 'static' }
+const intervals: Session = {
+  type: 'intervals',
+  reps: 6,
+  repMeters: 800,
+  recovery: 'static',
+  targetPaceSecondsPerKm: 300,
+}
 
 describe('planRoute', () => {
   it('returns the compiled plan, its work requirements, and ranked segments', async () => {

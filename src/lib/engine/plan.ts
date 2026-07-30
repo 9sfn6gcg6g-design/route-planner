@@ -36,7 +36,9 @@ function describeSession(session: Session): string {
     case 'long':
       return `Long run ${(session.distanceMeters / 1000).toFixed(1)}k`
     case 'tempo':
-      return `Tempo ${(session.tempoMeters / 1000).toFixed(1)}k`
+      return session.reps === 1
+        ? `Tempo ${(session.tempoMeters / 1000).toFixed(1)}k`
+        : `Tempo ${session.reps}x${(session.tempoMeters / 1000).toFixed(1)}k`
     case 'intervals':
       return `Intervals ${session.reps}x${session.repMeters}m`
     case 'hills':

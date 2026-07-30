@@ -9,7 +9,9 @@ export function sessionSummary(session: Session): string {
     case 'long':
       return `Long ${formatKm(session.distanceMeters)}`
     case 'tempo':
-      return `Tempo ${formatKm(session.tempoMeters)}`
+      return session.reps === 1
+        ? `Tempo ${formatKm(session.tempoMeters)}`
+        : `${session.reps} × ${formatKm(session.tempoMeters)} tempo`
     case 'intervals':
       return `${session.reps} × ${session.repMeters}m intervals (${session.recovery} recovery)`
     case 'hills':
@@ -25,7 +27,9 @@ function sessionSlug(session: Session): string {
     case 'long':
       return `long-${km(session.distanceMeters)}km`
     case 'tempo':
-      return `tempo-${km(session.tempoMeters)}km`
+      return session.reps === 1
+        ? `tempo-${km(session.tempoMeters)}km`
+        : `${session.reps}x${km(session.tempoMeters)}km-tempo`
     case 'intervals':
       return `${session.reps}x${session.repMeters}m-intervals`
     case 'hills':
@@ -50,4 +54,12 @@ export function formatPercent01(value: number): string {
 /** Gradient percent → "3.4%". */
 export function formatGradient(percent: number): string {
   return `${percent.toFixed(1)}%`
+}
+
+/** Target pace in seconds/km → "5:10/km" (decision 13; formatted at the edge). */
+export function formatPace(secondsPerKm: number): string {
+  const total = Math.round(secondsPerKm)
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}/km`
 }

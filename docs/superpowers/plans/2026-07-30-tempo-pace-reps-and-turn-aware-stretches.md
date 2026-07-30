@@ -58,19 +58,21 @@ are independent and ship as separate PR slices.
 
 ### Slice 1 — Domain model: pace + tempo reps
 
-- [ ] `types.ts`: add `targetPaceSecondsPerKm` to `TempoSession`,
+- [x] `types.ts`: add `targetPaceSecondsPerKm` to `TempoSession`,
       `IntervalsSession`, `HillsSession`; grow `TempoSession` with `reps` +
       `recovery`. `tempoMeters` is the per-rep block.
-- [ ] `compiler.ts`: validate pace (finite positive) and tempo `reps` (int
+- [x] `compiler.ts`: validate pace (finite positive) and tempo `reps` (int
       >= 1); extend `workMetersFor` for tempo (`reps × block + recoveries`,
       reusing `JOG_RECOVERY_FACTOR`); tempo stays `continuous`.
-- [ ] `profiles.ts`: `minUninterruptedMeters = min(session.tempoMeters, 1500)`
-      is already per-block once `tempoMeters` is the block — confirm + test.
-- [ ] `results/format.ts`: tempo summary/slug show reps (`3 × 2.0 km tempo`);
+- [x] `profiles.ts`: `minUninterruptedMeters = min(session.tempoMeters, 1500)`
+      is already per-block once `tempoMeters` is the block — confirmed + tested.
+- [x] `results/format.ts`: tempo summary/slug show reps (`3 × 2.0 km tempo`);
       add a pace formatter (`sec/km → mm:ss/km`).
-- [ ] `plan.ts` `describeSession`: tempo name reflects reps.
-- [ ] Update every affected test in the same commit; add tests pinning the new
+- [x] `plan.ts` `describeSession`: tempo name reflects reps.
+- [x] Update every affected test in the same commit; add tests pinning the new
       compiler behaviour and the pace formatter.
+- [x] `parse.ts`: parse `mm:ss` pace + tempo reps/recovery at the input edge
+      (pulled forward from Slice 2 so the type change stays green).
 
 ### Slice 2 — Input boundary: form + parse
 

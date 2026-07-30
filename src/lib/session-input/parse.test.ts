@@ -9,6 +9,7 @@ const base: SessionFormValues = {
   repMeters: '',
   recovery: 'jog',
   hillMeters: '',
+  targetPace: '5:00',
 }
 
 describe('parseSessionForm', () => {
@@ -22,30 +23,67 @@ describe('parseSessionForm', () => {
     expect(result).toEqual({ ok: true, session: { type: 'long', distanceMeters: 16100 } })
   })
 
-  it('builds a tempo session from tempoKm', () => {
-    const result = parseSessionForm({ ...base, type: 'tempo', tempoKm: '5' })
-    expect(result).toEqual({ ok: true, session: { type: 'tempo', tempoMeters: 5000 } })
+  it('builds a single-block tempo session with reps, block km, and pace', () => {
+    const result = parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1' })
+    expect(result).toEqual({
+      ok: true,
+      session: {
+        type: 'tempo',
+        reps: 1,
+        tempoMeters: 5000,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
+      },
+    })
   })
 
-  it('builds an intervals session with reps, rep meters, and recovery', () => {
+  it('builds a multi-rep tempo session', () => {
+    const result = parseSessionForm({
+      ...base,
+      type: 'tempo',
+      tempoKm: '2',
+      reps: '3',
+      recovery: 'jog',
+      targetPace: '4:45',
+    })
+    expect(result).toEqual({
+      ok: true,
+      session: {
+        type: 'tempo',
+        reps: 3,
+        tempoMeters: 2000,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 285,
+      },
+    })
+  })
+
+  it('builds an intervals session with reps, rep meters, recovery, and pace', () => {
     const result = parseSessionForm({
       ...base,
       type: 'intervals',
       reps: '6',
       repMeters: '800',
       recovery: 'static',
+      targetPace: '4:30',
     })
     expect(result).toEqual({
       ok: true,
-      session: { type: 'intervals', reps: 6, repMeters: 800, recovery: 'static' },
+      session: {
+        type: 'intervals',
+        reps: 6,
+        repMeters: 800,
+        recovery: 'static',
+        targetPaceSecondsPerKm: 270,
+      },
     })
   })
 
-  it('builds a hills session with reps and hill meters', () => {
+  it('builds a hills session with reps, hill meters, and pace', () => {
     const result = parseSessionForm({ ...base, type: 'hills', reps: '8', hillMeters: '150' })
     expect(result).toEqual({
       ok: true,
-      session: { type: 'hills', reps: 8, hillMeters: 150 },
+      session: { type: 'hills', reps: 8, hillMeters: 150, targetPaceSecondsPerKm: 300 },
     })
   })
 
@@ -80,6 +118,31 @@ describe('parseSessionForm', () => {
     expect(result).toEqual({
       ok: false,
       errors: { reps: 'Required', repMeters: 'Required' },
+    })
+  })
+
+  it('parses mm:ss pace into seconds per km', () => {
+    const result = parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '5:10' })
+    expect(result).toEqual({
+      ok: true,
+      session: {
+        type: 'tempo',
+        reps: 1,
+        tempoMeters: 5000,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 310,
+      },
+    })
+  })
+
+  it('rejects a malformed pace with a friendly error', () => {
+    expect(parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '5.10' })).toEqual({
+      ok: false,
+      errors: { targetPace: 'Enter pace as mm:ss (e.g. 5:10)' },
+    })
+    expect(parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '' })).toEqual({
+      ok: false,
+      errors: { targetPace: 'Required' },
     })
   })
 })

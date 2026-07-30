@@ -277,6 +277,7 @@ describe('buildChains', () => {
         reps: 6,
         repMeters: 800,
         recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
       } satisfies Session)
       const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
       expect(candidates.length).toBeGreaterThanOrEqual(1)
@@ -288,6 +289,7 @@ describe('buildChains', () => {
         reps: 12,
         repMeters: 400,
         recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
       } satisfies Session)
       const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
       expect(candidates.length).toBeGreaterThanOrEqual(1)
@@ -298,6 +300,7 @@ describe('buildChains', () => {
         type: 'hills',
         reps: 8,
         hillMeters: 300,
+        targetPaceSecondsPerKm: 300,
       } satisfies Session)
       const candidates = chains.filter((c) => evaluateChain(c, req, null).passes)
       expect(candidates.length).toBeGreaterThanOrEqual(1)
