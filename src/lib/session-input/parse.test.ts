@@ -135,14 +135,25 @@ describe('parseSessionForm', () => {
     })
   })
 
-  it('rejects a malformed pace with a friendly error', () => {
+  it('rejects a non-empty malformed pace with a friendly error', () => {
     expect(parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '5.10' })).toEqual({
       ok: false,
       errors: { targetPace: 'Enter pace as mm:ss (e.g. 5:10)' },
     })
+  })
+
+  it('accepts an empty pace and omits it (optional, decision 17)', () => {
     expect(parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '' })).toEqual({
-      ok: false,
-      errors: { targetPace: 'Required' },
+      ok: true,
+      session: { type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog' },
+    })
+    expect(parseSessionForm({ ...base, type: 'intervals', repMeters: '800', reps: '6', targetPace: '  ' })).toEqual({
+      ok: true,
+      session: { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' },
+    })
+    expect(parseSessionForm({ ...base, type: 'hills', hillMeters: '150', reps: '8', targetPace: '' })).toEqual({
+      ok: true,
+      session: { type: 'hills', reps: 8, hillMeters: 150 },
     })
   })
 })
