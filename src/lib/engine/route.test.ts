@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildGraph } from './graph'
-import { routeBetween, snapToNode } from './route'
+import { reachableLengths, routeBetween, snapToNode } from './route'
 import type { LatLon, OsmWay } from './types'
 
 /** A way from explicit [lat, lon] points with explicit node ids. */
@@ -68,6 +68,46 @@ describe('routeBetween', () => {
 
   it('returns null for unknown node ids', () => {
     expect(routeBetween(buildGraph(chain), 10, 999)).toBeNull()
+  })
+})
+
+describe('reachableLengths', () => {
+  it('reports the true path length in meters to every reachable node', () => {
+    const lengths = reachableLengths(buildGraph(chain), 10)
+    expect(lengths.get(10)).toBe(0)
+    expect(lengths.get(20)).toBeGreaterThan(500)
+    expect(lengths.get(30)).toBeGreaterThan(1000)
+  })
+
+  it('omits unreachable nodes', () => {
+    const disconnected = [...chain, way(3, [40, 50], [[51.5, -2.5], [51.5, -2.49]])]
+    const lengths = reachableLengths(buildGraph(disconnected), 10)
+    expect(lengths.has(50)).toBe(false)
+  })
+})
+
+describe('routeBetween — penalized edges (loop diversity)', () => {
+  it('avoids penalized edges when an alternative exists', () => {
+    const graph = buildGraph(parallel)
+    const first = routeBetween(graph, 10, 20)
+    expect(first!.points.some((p) => p.lat === D[0] && p.lon === D[1])).toBe(true) // cycleway
+    const back = routeBetween(graph, 20, 10, {
+      penalizedEdges: new Set(first!.edges),
+      penaltyFactor: 4,
+    })
+    // With the cycleway penalized 4×, the trunk road is now cheaper.
+    expect(back!.points.some((p) => p.lat === D[0] && p.lon === D[1])).toBe(false)
+  })
+
+  it('still uses a penalized edge when it is the only way', () => {
+    const graph = buildGraph(chain)
+    const out = routeBetween(graph, 10, 30)
+    const back = routeBetween(graph, 30, 10, {
+      penalizedEdges: new Set(out!.edges),
+      penaltyFactor: 4,
+    })
+    expect(back).not.toBeNull()
+    expect(back!.lengthMeters).toBeGreaterThan(1000)
   })
 })
 

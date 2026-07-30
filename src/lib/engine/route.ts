@@ -28,8 +28,19 @@ export interface SnappedNode {
  */
 const QUIET_COST_FACTOR = 1.5
 
-const edgeCost = (edge: RunEdge): number =>
-  edge.lengthMeters * (1 + QUIET_COST_FACTOR * (1 - edge.quietness))
+export interface RouteOptions {
+  /** Edges whose cost is multiplied by `penaltyFactor` — used to push a
+   *  return leg away from the outbound leg's ground (loop diversity). A
+   *  penalized edge is still usable when it is the only way. */
+  penalizedEdges?: Set<RunEdge>
+  /** Cost multiplier for penalized edges. Default 4. */
+  penaltyFactor?: number
+}
+
+const edgeCost = (edge: RunEdge, options?: RouteOptions): number => {
+  const base = edge.lengthMeters * (1 + QUIET_COST_FACTOR * (1 - edge.quietness))
+  return options?.penalizedEdges?.has(edge) ? base * (options.penaltyFactor ?? 4) : base
+}
 
 interface AdjacencyEntry {
   edge: RunEdge
@@ -117,6 +128,49 @@ export function snapToNode(graph: RunGraph, target: LatLon): SnappedNode | null 
 }
 
 /**
+ * Quietness-weighted shortest-path lengths from one node to every reachable
+ * node, in true meters (the quietness weighting shapes each path's choice;
+ * the reported number is real ground distance along that path). The loop
+ * finder uses this to pick candidate turn points at ~half the target.
+ */
+export function reachableLengths(graph: RunGraph, fromNodeId: number): Map<number, number> {
+  const adjacency = buildAdjacency(graph)
+  const costTo = new Map<number, number>([[fromNodeId, 0]])
+  const lengthTo = new Map<number, number>([[fromNodeId, 0]])
+  const settled = new Set<number>()
+  const frontier = new MinHeap()
+  frontier.push(fromNodeId, 0)
+  while (frontier.size > 0) {
+    const current = frontier.pop()
+    if (current === undefined) break
+    if (settled.has(current.node)) continue
+    settled.add(current.node)
+    for (const entry of adjacency.get(current.node) ?? []) {
+      if (settled.has(entry.neighbor)) continue
+      const cost = current.cost + edgeCost(entry.edge)
+      const known = costTo.get(entry.neighbor)
+      if (known === undefined || cost < known) {
+        costTo.set(entry.neighbor, cost)
+        lengthTo.set(
+          entry.neighbor,
+          (lengthTo.get(current.node) ?? 0) + entry.edge.lengthMeters,
+        )
+        frontier.push(entry.neighbor, cost)
+      }
+    }
+  }
+  const lengths = new Map<number, number>()
+  for (const node of settled) {
+    const length = lengthTo.get(node)
+    if (length !== undefined) lengths.set(node, length)
+  }
+  if (!graph.edges.some((e) => e.fromNodeId === fromNodeId || e.toNodeId === fromNodeId)) {
+    lengths.delete(fromNodeId)
+  }
+  return lengths
+}
+
+/**
  * Quietness-weighted shortest path between two graph nodes (Dijkstra).
  * Returns null when either node is unknown or no path exists. The reported
  * lengthMeters is the real ground distance — the quietness weighting shapes
@@ -126,6 +180,7 @@ export function routeBetween(
   graph: RunGraph,
   fromNodeId: number,
   toNodeId: number,
+  options?: RouteOptions,
 ): GraphRoute | null {
   const points = nodePoints(graph)
   if (!points.has(fromNodeId) || !points.has(toNodeId)) return null
@@ -149,7 +204,7 @@ export function routeBetween(
     if (current.node === toNodeId) break
     for (const entry of adjacency.get(current.node) ?? []) {
       if (settled.has(entry.neighbor)) continue
-      const cost = current.cost + edgeCost(entry.edge)
+      const cost = current.cost + edgeCost(entry.edge, options)
       const known = costTo.get(entry.neighbor)
       if (known === undefined || cost < known) {
         costTo.set(entry.neighbor, cost)
