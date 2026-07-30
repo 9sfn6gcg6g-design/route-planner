@@ -63,3 +63,12 @@ export function formatPace(secondsPerKm: number): string {
   const seconds = total % 60
   return `${minutes}:${String(seconds).padStart(2, '0')}/km`
 }
+
+/**
+ * Caveat for a stretch that couldn't stay crossing-free (decision 15):
+ * "Crosses 2 roads", or null when the stretch is crossing-free.
+ */
+export function crossingCaveat(crossings: number): string | null {
+  if (crossings <= 0) return null
+  return `Crosses ${crossings} ${crossings === 1 ? 'road' : 'roads'}`
+}

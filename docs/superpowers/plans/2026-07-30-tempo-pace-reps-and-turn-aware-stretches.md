@@ -90,29 +90,34 @@ are independent and ship as separate PR slices.
 
 ### Slice 4 — Engine: turn-aware stretch assembly
 
-- [ ] `geo.ts`: left/right/straight classification from arrival + candidate
-      bearings (reuse `bearingDegrees`/`angularDifferenceDegrees`).
-- [ ] `chains.ts`: at a genuine junction, instead of terminating, choose the
-      continuation by priority left > right > straight; record a **crossing**
-      when the chosen move is a straight-across of a major road. `Chain` gains
-      a crossing tally (JSON-safe array of node ids, like
-      `toleratedJunctionNodeIds`).
-- [ ] Keep determinism (walk-order independence) — the property the current
-      mutual-continuation design protects. Re-derive the equivalent guarantee
-      for turn selection.
-- [ ] Tests against the Bristol fixture pinning turn choice and crossing tally.
+- [x] `geo.ts`: `signedTurnDegrees` + `classifyTurn` (left/right/straight/back)
+      from arrival + candidate bearings.
+- [x] New `stretches.ts` (kept `chains.ts` intact to avoid churn): at a genuine
+      junction, extend by priority left > right > straight; each straight-across
+      is tallied as a crossing. Crossings ride on `Stretch`, not `Chain`, so
+      `Chain`'s shape is unchanged.
+- [x] Determinism preserved — selection depends only on topology + signals
+      (turn class, then quietness, then a stable corridor key), never input
+      order. Covered by a determinism test.
+- [x] Tests: synthetic junctions pinning left>right>straight choice + crossing
+      tally, plus Bristol-fixture invariants (corridor parity, determinism).
 
 ### Slice 5 — Graceful degradation + caveat
 
-- [ ] `finder.ts`/`evaluate.ts`: carry crossing count onto `WorkSegment`; rank
-      crossing-free stretches above crossing ones; define the "major road"
-      class threshold + what increments the count (flag for owner review).
-- [ ] `plan.ts` `generateRoute`: stop throwing when the only stretches carry
-      crossings — return the best one with its crossing count.
-- [ ] `results/format.ts` + UI: caveat copy ("crosses N roads") on degraded
-      results; keep the honest "search wider / different start" affordances.
-- [ ] Tests: a fixture where only a crossing-bearing stretch fits returns a
-      caveated result rather than an empty/throw.
+- [x] `finder.ts`: assemble stretches with a length floor; carry the crossing
+      count onto `WorkSegment`; rank crossing-free stretches above crossing
+      ones. `evaluate.ts` unchanged — crossings never gate pass/fail.
+- [x] Graceful degradation: `findWorkSegments` returns a crossing-bearing
+      stretch when no crossing-free one reaches the floor, rather than nothing;
+      `generateRoute`/`planRoute` surface `segment.crossings`. The throw stays
+      only for genuine emptiness. (Note: "major road" threshold turned out
+      unneeded — a straight-across at any real junction that terminates a
+      corridor is already a comparable-road crossing, since minor joins splice.)
+- [x] `results/format.ts`: `crossingCaveat` ("Crosses N roads") for the UI to
+      render on degraded results. Wiring it into the view rides with Slice 2/3.
+- [x] Tests: finder returns a caveated crossing-bearing stretch (crossings 1)
+      when only a crossing reaches the floor; sub-floor corridor qualifies
+      crossing-free via a turn.
 
 ### Slice 6 — (Conditional) sub-window finder
 

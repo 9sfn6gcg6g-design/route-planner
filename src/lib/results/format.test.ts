@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/domain/types'
 import {
+  crossingCaveat,
   formatGradient,
   formatKm,
   formatPace,
@@ -78,5 +79,11 @@ describe('number formatters', () => {
     expect(formatPace(300)).toBe('5:00/km')
     expect(formatPace(310)).toBe('5:10/km')
     expect(formatPace(285)).toBe('4:45/km')
+  })
+
+  it('caveats road crossings, and stays silent when crossing-free', () => {
+    expect(crossingCaveat(0)).toBeNull()
+    expect(crossingCaveat(1)).toBe('Crosses 1 road')
+    expect(crossingCaveat(3)).toBe('Crosses 3 roads')
   })
 })
