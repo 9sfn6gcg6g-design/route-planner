@@ -40,8 +40,9 @@ These hold at **every commit**, not just at the end of a branch:
 - `npm run lint`, `npm run typecheck` and `npm test` all pass.
 - **No `any` types.** No `@ts-expect-error` or disabled lint rules without a
   comment on the same line explaining why.
-- **Units are fixed:** distances in **meters**, gradients in **percent**,
-  quietness and other scores **0–1**. Never store a mix; convert at the edges.
+- **Units are fixed:** distances in **meters**, gradients in **percent**, pace
+  in **seconds per kilometre**, quietness and other scores **0–1**. Never store
+  a mix; convert at the edges.
 - **No network in tests.** External services (Overpass, Open-Meteo,
   Openrouteservice) are reached through injected functions so tests pass fakes.
   Fixtures live in `src/lib/engine/__fixtures__/`.

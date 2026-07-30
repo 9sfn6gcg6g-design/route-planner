@@ -47,6 +47,13 @@ describe('buildGpxTrack', () => {
     expect(buildGpxTrack(points)).not.toContain('<name>')
   })
 
+  it('includes and escapes <desc>, after <name>, only when given', () => {
+    expect(buildGpxTrack(points)).not.toContain('<desc>')
+    const gpx = buildGpxTrack(points, { name: 'Tempo 5.0 km', description: 'Target pace 5:10/km' })
+    expect(gpx).toContain('<desc>Target pace 5:10/km</desc>')
+    expect(gpx.indexOf('<name>')).toBeLessThan(gpx.indexOf('<desc>'))
+  })
+
   it('throws when elevations length does not match points length', () => {
     expect(() => buildGpxTrack(points, { elevations: [1, 2] })).toThrow(/does not match/)
   })

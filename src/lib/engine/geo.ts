@@ -52,3 +52,34 @@ export function angularDifferenceDegrees(a: number, b: number): number {
   const d = Math.abs(a - b) % 360
   return d > 180 ? 360 - d : d
 }
+
+export type TurnClass = 'straight' | 'left' | 'right' | 'back'
+
+/**
+ * Signed heading change from an arrival bearing to a departure bearing, in
+ * (-180, 180]. Negative is a left turn (anticlockwise), positive a right turn
+ * (clockwise) — bearings run clockwise from north, so turning right increases
+ * the heading.
+ */
+export function signedTurnDegrees(arrivalBearing: number, departureBearing: number): number {
+  return ((departureBearing - arrivalBearing + 540) % 360) - 180
+}
+
+/**
+ * Classify a continuation through a junction as a left/right turn, a
+ * straight-through (a road crossing, in stretch terms — decision 15), or a
+ * `back` U-turn we never take. `straightMax` is the half-width of the straight
+ * cone; a turn sharper than `backMin` is a doubling-back.
+ */
+export function classifyTurn(
+  arrivalBearing: number,
+  departureBearing: number,
+  straightMax = 45,
+  backMin = 135,
+): TurnClass {
+  const turn = signedTurnDegrees(arrivalBearing, departureBearing)
+  const magnitude = Math.abs(turn)
+  if (magnitude <= straightMax) return 'straight'
+  if (magnitude >= backMin) return 'back'
+  return turn < 0 ? 'left' : 'right'
+}

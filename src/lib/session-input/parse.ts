@@ -11,16 +11,18 @@ export interface SessionFormValues {
   type: Session['type']
   /** easy / long distance, km. */
   distanceKm: string
-  /** tempo distance, km. */
+  /** tempo per-rep block length, km. */
   tempoKm: string
-  /** intervals / hills rep count. */
+  /** tempo / intervals / hills rep count. */
   reps: string
   /** intervals rep length, meters. */
   repMeters: string
-  /** intervals recovery style. */
+  /** tempo / intervals recovery style. */
   recovery: RecoveryType
   /** hills climb length, meters. */
   hillMeters: string
+  /** target pace as mm:ss per km (tempo / intervals / hills). */
+  targetPace: string
 }
 
 export type FieldErrors = Partial<Record<keyof SessionFormValues, string>>
@@ -47,6 +49,17 @@ function positiveInt(raw: string): { value: number } | { error: string } {
   return { value: n }
 }
 
+/** "mm:ss" per km → seconds/km at the edge (decision 13). */
+function pace(raw: string): { value: number } | { error: string } {
+  const trimmed = raw.trim()
+  if (trimmed === '') return { error: 'Required' }
+  const match = /^(\d{1,2}):([0-5]\d)$/.exec(trimmed)
+  if (!match) return { error: 'Enter pace as mm:ss (e.g. 5:10)' }
+  const seconds = Number(match[1]) * 60 + Number(match[2])
+  if (seconds <= 0) return { error: 'Must be greater than 0' }
+  return { value: seconds }
+}
+
 const kmToMeters = (km: number): number => Math.round(km * 1000)
 
 export function parseSessionForm(values: SessionFormValues): ParseResult {
@@ -62,17 +75,36 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
       return { ok: true, session: { type: 'long', distanceMeters: kmToMeters(d.value) } }
     }
     case 'tempo': {
-      const d = positiveNumber(values.tempoKm)
-      if ('error' in d) return { ok: false, errors: { tempoKm: d.error } }
-      return { ok: true, session: { type: 'tempo', tempoMeters: kmToMeters(d.value) } }
+      const errors: FieldErrors = {}
+      const reps = positiveInt(values.reps)
+      const tempoMeters = positiveNumber(values.tempoKm)
+      const targetPace = pace(values.targetPace)
+      if ('error' in reps) errors.reps = reps.error
+      if ('error' in tempoMeters) errors.tempoKm = tempoMeters.error
+      if ('error' in targetPace) errors.targetPace = targetPace.error
+      if ('value' in reps && 'value' in tempoMeters && 'value' in targetPace) {
+        return {
+          ok: true,
+          session: {
+            type: 'tempo',
+            reps: reps.value,
+            tempoMeters: kmToMeters(tempoMeters.value),
+            recovery: values.recovery,
+            targetPaceSecondsPerKm: targetPace.value,
+          },
+        }
+      }
+      return { ok: false, errors }
     }
     case 'intervals': {
       const errors: FieldErrors = {}
       const reps = positiveInt(values.reps)
       const repMeters = positiveNumber(values.repMeters)
+      const targetPace = pace(values.targetPace)
       if ('error' in reps) errors.reps = reps.error
       if ('error' in repMeters) errors.repMeters = repMeters.error
-      if ('value' in reps && 'value' in repMeters) {
+      if ('error' in targetPace) errors.targetPace = targetPace.error
+      if ('value' in reps && 'value' in repMeters && 'value' in targetPace) {
         return {
           ok: true,
           session: {
@@ -80,6 +112,7 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
             reps: reps.value,
             repMeters: Math.round(repMeters.value),
             recovery: values.recovery,
+            targetPaceSecondsPerKm: targetPace.value,
           },
         }
       }
@@ -89,15 +122,18 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
       const errors: FieldErrors = {}
       const reps = positiveInt(values.reps)
       const hillMeters = positiveNumber(values.hillMeters)
+      const targetPace = pace(values.targetPace)
       if ('error' in reps) errors.reps = reps.error
       if ('error' in hillMeters) errors.hillMeters = hillMeters.error
-      if ('value' in reps && 'value' in hillMeters) {
+      if ('error' in targetPace) errors.targetPace = targetPace.error
+      if ('value' in reps && 'value' in hillMeters && 'value' in targetPace) {
         return {
           ok: true,
           session: {
             type: 'hills',
             reps: reps.value,
             hillMeters: Math.round(hillMeters.value),
+            targetPaceSecondsPerKm: targetPace.value,
           },
         }
       }

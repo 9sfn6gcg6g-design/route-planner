@@ -5,19 +5,38 @@ describe('workMetersFor', () => {
   it('sums reps plus half-rep jog recoveries between them', () => {
     // 6 × 800m + 5 jog recoveries of 400m = 4800 + 2000
     expect(
-      workMetersFor({ type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' }),
+      workMetersFor({ type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog', targetPaceSecondsPerKm: 300 }),
     ).toBe(6800)
   })
 
   it('static recovery adds no distance', () => {
     expect(
-      workMetersFor({ type: 'intervals', reps: 12, repMeters: 400, recovery: 'static' }),
+      workMetersFor({
+        type: 'intervals',
+        reps: 12,
+        repMeters: 400,
+        recovery: 'static',
+        targetPaceSecondsPerKm: 300,
+      }),
     ).toBe(4800)
   })
 
   it('hill reps count the jog back down', () => {
     // 8 × 300m up + 8 × 300m back down
-    expect(workMetersFor({ type: 'hills', reps: 8, hillMeters: 300 })).toBe(4800)
+    expect(workMetersFor({ type: 'hills', reps: 8, hillMeters: 300, targetPaceSecondsPerKm: 300 })).toBe(4800)
+  })
+
+  it('multi-rep tempo sums blocks plus half-block jog recoveries (decision 14)', () => {
+    // 3 × 2000m + 2 jog recoveries of 1000m = 6000 + 2000
+    expect(
+      workMetersFor({
+        type: 'tempo',
+        reps: 3,
+        tempoMeters: 2000,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 285,
+      }),
+    ).toBe(8000)
   })
 })
 
@@ -52,6 +71,7 @@ describe('compileSession', () => {
       reps: 6,
       repMeters: 800,
       recovery: 'jog',
+      targetPaceSecondsPerKm: 300,
     })
     expect(plan.phases.map((p) => p.kind)).toEqual(['warmup', 'work', 'cooldown'])
     expect(plan.phases[0].requirements).toBeNull()
@@ -65,7 +85,7 @@ describe('compileSession', () => {
 
   it('honors an explicit connector override', () => {
     const plan = compileSession(
-      { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' },
+      { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog', targetPaceSecondsPerKm: 300 },
       { connectorMeters: 2500 },
     )
     expect(plan.phases[0].targetMeters).toBe(2500)
@@ -73,13 +93,19 @@ describe('compileSession', () => {
   })
 
   it('tempo is continuous, not laps', () => {
-    const plan = compileSession({ type: 'tempo', tempoMeters: 5000 })
+    const plan = compileSession({
+      type: 'tempo',
+      reps: 1,
+      tempoMeters: 5000,
+      recovery: 'jog',
+      targetPaceSecondsPerKm: 300,
+    })
     expect(plan.workPattern).toBe('continuous')
     expect(plan.phases.map((p) => p.kind)).toEqual(['warmup', 'work', 'cooldown'])
   })
 
   it('hills run as laps of the hill', () => {
-    const plan = compileSession({ type: 'hills', reps: 8, hillMeters: 300 })
+    const plan = compileSession({ type: 'hills', reps: 8, hillMeters: 300, targetPaceSecondsPerKm: 300 })
     expect(plan.workPattern).toBe('laps')
     expect(plan.phases[1].requirements?.minAvgGradientPercent).toBe(4)
   })
@@ -88,8 +114,26 @@ describe('compileSession', () => {
 describe('input validation', () => {
   it('throws when intervals reps is 0', () => {
     expect(() =>
-      workMetersFor({ type: 'intervals', reps: 0, repMeters: 800, recovery: 'jog' }),
+      workMetersFor({
+        type: 'intervals',
+        reps: 0,
+        repMeters: 800,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
+      }),
     ).toThrow(/reps/)
+  })
+
+  it('throws when a structured session has a non-finite target pace (decision 13)', () => {
+    expect(() =>
+      compileSession({
+        type: 'tempo',
+        reps: 1,
+        tempoMeters: 5000,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: NaN,
+      }),
+    ).toThrow(/targetPaceSecondsPerKm/)
   })
 
   it('throws when distanceMeters is negative', () => {
@@ -100,14 +144,20 @@ describe('input validation', () => {
 
   it('throws when repMeters is NaN', () => {
     expect(() =>
-      compileSession({ type: 'intervals', reps: 6, repMeters: NaN, recovery: 'jog' }),
+      compileSession({
+        type: 'intervals',
+        reps: 6,
+        repMeters: NaN,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
+      }),
     ).toThrow(/repMeters/)
   })
 
   it('throws when an explicit connectorMeters override is zero', () => {
     expect(() =>
       compileSession(
-        { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog' },
+        { type: 'intervals', reps: 6, repMeters: 800, recovery: 'jog', targetPaceSecondsPerKm: 300 },
         { connectorMeters: 0 },
       ),
     ).toThrow(/connectorMeters/)
@@ -115,7 +165,13 @@ describe('input validation', () => {
 
   it('compiles a single rep with no recovery distance (boundary case)', () => {
     expect(
-      workMetersFor({ type: 'intervals', reps: 1, repMeters: 800, recovery: 'jog' }),
+      workMetersFor({
+        type: 'intervals',
+        reps: 1,
+        repMeters: 800,
+        recovery: 'jog',
+        targetPaceSecondsPerKm: 300,
+      }),
     ).toBe(800)
 
     const plan = compileSession({
@@ -123,6 +179,7 @@ describe('input validation', () => {
       reps: 1,
       repMeters: 800,
       recovery: 'jog',
+      targetPaceSecondsPerKm: 300,
     })
     expect(plan.phases[1].targetMeters).toBe(800)
   })

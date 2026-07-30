@@ -8,6 +8,7 @@ describe('terrainRequirementsFor', () => {
       reps: 6,
       repMeters: 800,
       recovery: 'jog',
+      targetPaceSecondsPerKm: 300,
     })
     expect(req.minUninterruptedMeters).toBe(800)
     expect(req.surface).toBe('paved')
@@ -17,23 +18,34 @@ describe('terrainRequirementsFor', () => {
   })
 
   it('hills are the one session type that demands gradient', () => {
-    const req = terrainRequirementsFor({ type: 'hills', reps: 8, hillMeters: 300 })
+    const req = terrainRequirementsFor({
+      type: 'hills',
+      reps: 8,
+      hillMeters: 300,
+      targetPaceSecondsPerKm: 300,
+    })
     expect(req.minAvgGradientPercent).not.toBeNull()
     expect(req.minAvgGradientPercent!).toBeGreaterThanOrEqual(4)
     expect(req.minUninterruptedMeters).toBe(300)
   })
 
   it('tempo requires an uninterrupted stretch of the tempo distance capped at 1.5km', () => {
-    const long = terrainRequirementsFor({ type: 'tempo', tempoMeters: 5000 })
+    const long = terrainRequirementsFor({ type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog', targetPaceSecondsPerKm: 300 })
     expect(long.minUninterruptedMeters).toBe(1500)
-    const short = terrainRequirementsFor({ type: 'tempo', tempoMeters: 1000 })
+    const short = terrainRequirementsFor({
+      type: 'tempo',
+      reps: 1,
+      tempoMeters: 1000,
+      recovery: 'jog',
+      targetPaceSecondsPerKm: 300,
+    })
     expect(short.minUninterruptedMeters).toBe(1000)
     expect(long.surface).toBe('paved')
   })
 
   it('easy runs are the most permissive profile', () => {
     const easy = terrainRequirementsFor({ type: 'easy', distanceMeters: 8000 })
-    const tempo = terrainRequirementsFor({ type: 'tempo', tempoMeters: 5000 })
+    const tempo = terrainRequirementsFor({ type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog', targetPaceSecondsPerKm: 300 })
     expect(easy.surface).toBe('any')
     expect(easy.maxJunctionsPerKm).toBeGreaterThan(tempo.maxJunctionsPerKm)
     expect(easy.minQuietness).toBeLessThan(tempo.minQuietness)

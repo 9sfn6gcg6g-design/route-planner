@@ -1,6 +1,6 @@
 import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
-import { buildChains } from './chains'
+import { assembleStretches } from './stretches'
 import { evaluateChain } from './evaluate'
 import { avgAbsGradientPercent } from './elevation'
 import { cumulativeMeters, haversineMeters } from './geo'
@@ -24,6 +24,8 @@ export interface WorkSegment {
   isCycle: boolean
   minQuietness: number
   avgAbsGradientPercent: number
+  /** Forced road crossings on this stretch (decision 15); 0 = crossing-free. */
+  crossings: number
   score: number
 }
 
@@ -37,13 +39,15 @@ function distanceFromStart(start: LatLon, chain: Chain): number {
 }
 
 /**
- * Find ranked work segments near a start point. Cheap checks run first —
- * distance prefilter, then static requirement checks (gradient = null) —
- * so the elevation sampler is only called for chains that could actually
- * qualify. All surviving candidates' resampled points are batched into a
- * single elevation call for frugality. Whole-chain evaluation only: finding
- * a qualifying sub-window inside a longer chain that fails on average is a
- * future refinement.
+ * Find ranked work segments near a start point. Stretches are assembled with a
+ * length floor (decision 15): where a corridor is too short, it is extended
+ * across junctions by turning, so a qualifying stretch can be found without
+ * crossing roads. Cheap checks run first — distance prefilter, then static
+ * requirement checks (gradient = null) — so the elevation sampler is only
+ * called for stretches that could actually qualify. All surviving candidates'
+ * resampled points are batched into a single elevation call. Crossing-free
+ * stretches rank above crossing-bearing ones; the whole stretch is still
+ * evaluated on average (a sub-window search remains a future refinement).
  */
 export async function findWorkSegments(
   graph: RunGraph,
@@ -58,12 +62,14 @@ export async function findWorkSegments(
     resampleIntervalMeters = 40,
   } = options
 
-  const candidates: Array<{ chain: Chain; distance: number }> = []
-  for (const chain of buildChains(graph)) {
+  const candidates: Array<{ chain: Chain; distance: number; crossings: number }> = []
+  for (const { chain, crossings } of assembleStretches(graph, {
+    targetMeters: requirements.minUninterruptedMeters ?? 0,
+  })) {
     const distance = distanceFromStart(start, chain)
     if (distance > maxDistanceFromStartMeters) continue
     if (!evaluateChain(chain, requirements, null).passes) continue
-    candidates.push({ chain, distance })
+    candidates.push({ chain, distance, crossings })
   }
 
   const results: WorkSegment[] = []
@@ -76,7 +82,7 @@ export async function findWorkSegments(
     const elevations = await sampleElevations(resampledAll.flat())
     let offset = 0
     for (let i = 0; i < candidates.length; i++) {
-      const { chain, distance } = candidates[i]
+      const { chain, distance, crossings } = candidates[i]
       const resampled = resampledAll[i]
       const slice = elevations.slice(offset, offset + resampled.length)
       offset += resampled.length
@@ -90,10 +96,14 @@ export async function findWorkSegments(
         isCycle: chain.isCycle,
         minQuietness: evaluation.minQuietness,
         avgAbsGradientPercent: gradient,
+        crossings,
         score: evaluation.score,
       })
     }
   }
 
-  return results.sort((a, b) => b.score - a.score).slice(0, maxResults)
+  // Crossing-free stretches first (decision 15), then by quality score.
+  return results
+    .sort((a, b) => a.crossings - b.crossings || b.score - a.score)
+    .slice(0, maxResults)
 }

@@ -8,6 +8,8 @@ import type { LatLon } from '@/lib/engine/types'
 export interface GpxTrackOptions {
   /** Track name shown by watches and GPX viewers. */
   name?: string
+  /** Free-text track description, e.g. the session's target pace. */
+  description?: string
   /**
    * Per-point elevations in meters, index-aligned with `points`. When given,
    * its length must equal `points.length` (a mismatch is an alignment bug and
@@ -39,7 +41,7 @@ function buildTrackPoint(point: LatLon, elevation: number | undefined): string {
 }
 
 export function buildGpxTrack(points: LatLon[], options: GpxTrackOptions = {}): string {
-  const { name, elevations } = options
+  const { name, description, elevations } = options
 
   if (elevations !== undefined && elevations.length !== points.length) {
     throw new Error(
@@ -58,6 +60,8 @@ export function buildGpxTrack(points: LatLon[], options: GpxTrackOptions = {}): 
     '  <trk>',
   ]
   if (name !== undefined) lines.push(`    <name>${escapeXml(name)}</name>`)
+  // <desc> follows <name> per the GPX 1.1 trk schema ordering.
+  if (description !== undefined) lines.push(`    <desc>${escapeXml(description)}</desc>`)
   lines.push('    <trkseg>')
   for (const [i, point] of points.entries()) {
     lines.push(buildTrackPoint(point, elevations?.[i]))
