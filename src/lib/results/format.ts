@@ -56,6 +56,11 @@ export function formatGradient(percent: number): string {
   return `${percent.toFixed(1)}%`
 }
 
+/** 0–1 overall segment quality → "87%" (decision 16). */
+export function formatQuality(value: number): string {
+  return formatPercent01(value)
+}
+
 /** Target pace in seconds/km → "5:10/km" (decision 13; formatted at the edge). */
 export function formatPace(secondsPerKm: number): string {
   const total = Math.round(secondsPerKm)

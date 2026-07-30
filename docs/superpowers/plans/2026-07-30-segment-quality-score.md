@@ -43,14 +43,14 @@ existing `Crosses N roads` caveat.
 
 ## Tasks
 
-- [ ] Amend `docs/domain.md`: add decision 16 (single quality score; crossings
+- [x] Amend `docs/domain.md`: add decision 16 (single quality score; crossings
       weighted in; refines decision 15's ranking, caveat retained). Own commit.
-- [ ] `evaluate.ts`: drop `score` from `ChainEvaluation`; add pure
+- [x] `evaluate.ts`: drop `score` from `ChainEvaluation`; add pure
       `segmentQuality(...)`; keep `evaluateChain` pass/fail + `minQuietness`.
-- [ ] `finder.ts`: `WorkSegment.score → quality`; compute via `segmentQuality`
+- [x] `finder.ts`: `WorkSegment.score → quality`; compute via `segmentQuality`
       (fold in `crossings`); sort by `quality` desc.
-- [ ] `format.ts`: add `formatQuality`.
-- [ ] `planner.tsx`: row shows `Quality X% · distance away`; keep crossings caveat.
-- [ ] Tests: `evaluate.test.ts` (segmentQuality: quietness/gradient/crossing
+- [x] `format.ts`: add `formatQuality`.
+- [x] `planner.tsx`: row shows `Quality X% · distance away`; keep crossings caveat.
+- [x] Tests: `evaluate.test.ts` (segmentQuality: quietness/gradient/crossing
       ordering + 0–1 range), `finder.test.ts` (crossing-free outranks
       crossing-bearing all else equal), `format.test.ts` (formatQuality).

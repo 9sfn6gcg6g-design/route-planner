@@ -5,7 +5,6 @@ export interface ChainEvaluation {
   passes: boolean
   failures: string[]
   minQuietness: number
-  score: number
 }
 
 export function chainMinQuietness(chain: Chain): number {
@@ -13,14 +12,54 @@ export function chainMinQuietness(chain: Chain): number {
 }
 
 /**
- * Check a chain against a work phase's terrain requirements and score it
- * for ranking. Pass gradientPercent = null to run only the static checks
- * (length, quietness, surface, junction density) — the finder uses that as a
- * cheap prefilter before spending elevation lookups.
- *
- * The score is a v1 ranking heuristic, not a calibrated quantity:
- * quietness dominates, then gradient fit (flatness — or steepness when the
- * session wants climb), then a capped bonus for longer stretches.
+ * How much each dimension counts toward the single 0–1 quality score
+ * (decision 16). Quietness leads; gradient fit and crossing-freeness follow.
+ * The weights sum to 1 so quality lands in [0, 1]. v1 constants, tunable.
+ */
+const QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.25, crossingFree: 0.3 }
+
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
+
+/** 0–1 gradient fit: reward steepness when the session wants climb, else flatness. */
+function gradientFit(gradientPercent: number, wantsClimb: boolean): number {
+  return wantsClimb ? clamp01(gradientPercent / 10) : clamp01(1 - gradientPercent / 5)
+}
+
+/**
+ * 0–1 crossing-freeness: 1 for a crossing-free stretch, decaying as forced
+ * road crossings (decision 15) accumulate — 1 → 0.5 → 0.33 for 0, 1, 2
+ * crossings. Weighted into quality so crossings cost pace without hard-gating.
+ */
+function crossingFreeness(crossings: number): number {
+  return 1 / (1 + Math.max(0, crossings))
+}
+
+/**
+ * The single calibrated 0–1 segment quality (decision 16): a weighted blend of
+ * quietness, gradient fit and crossing-freeness. This is both what the runner
+ * sees ("Quality 87%") and what the finder ranks by. It orders segments that
+ * have already passed the hard `TerrainRequirements` gates — it never rejects.
+ */
+export function segmentQuality(params: {
+  minQuietness: number
+  gradientPercent: number
+  wantsClimb: boolean
+  crossings: number
+}): number {
+  const w = QUALITY_WEIGHTS
+  return (
+    w.quietness * clamp01(params.minQuietness) +
+    w.gradient * gradientFit(params.gradientPercent, params.wantsClimb) +
+    w.crossingFree * crossingFreeness(params.crossings)
+  )
+}
+
+/**
+ * Check a chain against a work phase's terrain requirements. Pass
+ * gradientPercent = null to run only the static checks (length, quietness,
+ * surface, junction density) — the finder uses that as a cheap prefilter
+ * before spending elevation lookups. Ranking is not this function's job:
+ * `segmentQuality` computes the 0–1 quality the finder sorts and displays by.
  */
 export function evaluateChain(
   chain: Chain,
@@ -76,13 +115,5 @@ export function evaluateChain(
     }
   }
 
-  const wantsClimb = requirements.minAvgGradientPercent !== null
-  let score = minQuietness * 2 + Math.min(chain.lengthMeters / 1000, 2) * 0.25
-  if (gradientPercent !== null) {
-    score += wantsClimb
-      ? Math.min(gradientPercent / 10, 1)
-      : Math.max(0, 1 - gradientPercent / 5)
-  }
-
-  return { passes: failures.length === 0, failures, minQuietness, score }
+  return { passes: failures.length === 0, failures, minQuietness }
 }

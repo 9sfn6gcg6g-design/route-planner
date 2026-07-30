@@ -6,6 +6,7 @@ import {
   formatKm,
   formatPace,
   formatPercent01,
+  formatQuality,
   gpxFileName,
   sessionSummary,
 } from './format'
@@ -85,5 +86,10 @@ describe('number formatters', () => {
     expect(crossingCaveat(0)).toBeNull()
     expect(crossingCaveat(1)).toBe('Crosses 1 road')
     expect(crossingCaveat(3)).toBe('Crosses 3 roads')
+  })
+
+  it('formats a 0–1 quality score as a percentage', () => {
+    expect(formatQuality(0.87)).toBe('87%')
+    expect(formatQuality(1)).toBe('100%')
   })
 })
