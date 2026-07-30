@@ -12,6 +12,17 @@ export function chainMinQuietness(chain: Chain): number {
 }
 
 /**
+ * Length-weighted mean quietness (decision 17): the ranking statistic for
+ * conversational stretches, where one louder link doesn't define the run the
+ * way it breaks a rep. Hard gates keep using the minimum.
+ */
+export function chainMeanQuietness(chain: Chain): number {
+  const total = chain.edges.reduce((sum, e) => sum + e.lengthMeters, 0)
+  if (total === 0) return chainMinQuietness(chain)
+  return chain.edges.reduce((sum, e) => sum + e.quietness * e.lengthMeters, 0) / total
+}
+
+/**
  * How much each dimension counts toward the single 0–1 quality score
  * (decision 16). Quietness leads; gradient fit and crossing-freeness follow.
  * The weights sum to 1 so quality lands in [0, 1]. v1 constants, tunable.
@@ -23,7 +34,15 @@ const WORK_QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.25, crossingFree: 0.
  * is replaced by length-fit — stretch length over the capped work-phase
  * target, clamped to 1. Weights sum to 1. v1 constants, tunable.
  */
-const CONVERSATIONAL_QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.2, lengthFit: 0.35 }
+const CONVERSATIONAL_QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.15, lengthFit: 0.4 }
+
+/**
+ * Conversational gradient fit (decision 17): gentler than the work flatness
+ * curve — rolling ground is fine at conversational effort, and terrain-tile
+ * noise must not crater a long stretch's score. Zero only at 10% average.
+ */
+const conversationalGradientFit = (gradientPercent: number): number =>
+  clamp01(1 - gradientPercent / 10)
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 
@@ -48,7 +67,8 @@ function crossingFreeness(crossings: number): number {
  * have already passed the hard `TerrainRequirements` gates — it never rejects.
  */
 export function segmentQuality(params: {
-  minQuietness: number
+  /** The caller's quietness statistic: minimum for work stretches, length-weighted mean for conversational (decision 17). */
+  quietness: number
   gradientPercent: number
   wantsClimb: boolean
   crossings: number
@@ -56,20 +76,19 @@ export function segmentQuality(params: {
   /** Capped work-phase target for conversational sessions (decision 17); null = work stretch. */
   conversationalTargetMeters: number | null
 }): number {
-  const quietness = clamp01(params.minQuietness)
-  const gradient = gradientFit(params.gradientPercent, params.wantsClimb)
+  const quietness = clamp01(params.quietness)
   if (params.conversationalTargetMeters !== null) {
     const w = CONVERSATIONAL_QUALITY_WEIGHTS
     return (
       w.quietness * quietness +
-      w.gradient * gradient +
+      w.gradient * conversationalGradientFit(params.gradientPercent) +
       w.lengthFit * clamp01(params.lengthMeters / params.conversationalTargetMeters)
     )
   }
   const w = WORK_QUALITY_WEIGHTS
   return (
     w.quietness * quietness +
-    w.gradient * gradient +
+    w.gradient * gradientFit(params.gradientPercent, params.wantsClimb) +
     w.crossingFree * crossingFreeness(params.crossings)
   )
 }

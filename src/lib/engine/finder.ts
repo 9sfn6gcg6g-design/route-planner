@@ -1,7 +1,7 @@
 import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
 import { assembleStretches } from './stretches'
-import { evaluateChain, segmentQuality } from './evaluate'
+import { chainMeanQuietness, evaluateChain, segmentQuality } from './evaluate'
 import { avgAbsGradientPercent } from './elevation'
 import { cumulativeMeters, haversineMeters } from './geo'
 import { resamplePoints } from './resample'
@@ -126,7 +126,10 @@ export async function findWorkSegments(
       const evaluation = evaluateChain(chain, requirements, gradient)
       if (!evaluation.passes) continue
       const quality = segmentQuality({
-        minQuietness: evaluation.minQuietness,
+        quietness:
+          conversationalTargetMeters !== null
+            ? chainMeanQuietness(chain)
+            : evaluation.minQuietness,
         gradientPercent: gradient,
         wantsClimb: requirements.minAvgGradientPercent !== null,
         crossings,

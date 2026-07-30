@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TerrainRequirements } from '@/lib/domain/types'
-import { chainMinQuietness, evaluateChain, segmentQuality } from './evaluate'
+import { chainMeanQuietness, chainMinQuietness, evaluateChain, segmentQuality } from './evaluate'
 import type { Chain, RunEdge, SurfaceKind } from './types'
 
 function edge(lengthMeters: number, quietness: number, surface: SurfaceKind): RunEdge {
@@ -52,6 +52,16 @@ const hills: TerrainRequirements = {
 describe('chainMinQuietness', () => {
   it('is the minimum over edges', () => {
     expect(chainMinQuietness(chain([edge(100, 0.9, 'paved'), edge(100, 0.6, 'paved')]))).toBe(0.6)
+  })
+})
+
+describe('chainMeanQuietness (decision 17)', () => {
+  it('is the length-weighted mean over edges', () => {
+    // 300m at 0.9 and 100m at 0.5 → (0.9*300 + 0.5*100) / 400 = 0.8
+    expect(chainMeanQuietness(chain([edge(300, 0.9, 'paved'), edge(100, 0.5, 'paved')]))).toBeCloseTo(
+      0.8,
+      10,
+    )
   })
 })
 
@@ -107,7 +117,7 @@ describe('evaluateChain — gradient checks', () => {
 
 describe('segmentQuality (decision 16)', () => {
   const base = {
-    minQuietness: 0.9,
+    quietness: 0.9,
     gradientPercent: 0.3,
     wantsClimb: false,
     crossings: 0,
@@ -122,8 +132,8 @@ describe('segmentQuality (decision 16)', () => {
   })
 
   it('prefers quieter stretches, all else equal', () => {
-    expect(segmentQuality({ ...base, minQuietness: 0.9 })).toBeGreaterThan(
-      segmentQuality({ ...base, minQuietness: 0.7 }),
+    expect(segmentQuality({ ...base, quietness: 0.9 })).toBeGreaterThan(
+      segmentQuality({ ...base, quietness: 0.7 }),
     )
   })
 
@@ -132,7 +142,7 @@ describe('segmentQuality (decision 16)', () => {
       segmentQuality({ ...base, gradientPercent: 0.9 }),
     )
     const climb = {
-      minQuietness: 0.9,
+      quietness: 0.9,
       wantsClimb: true,
       crossings: 0,
       lengthMeters: 1000,
@@ -155,7 +165,7 @@ describe('segmentQuality (decision 16)', () => {
 
 describe('segmentQuality — conversational sessions (decision 17)', () => {
   const conv = {
-    minQuietness: 0.9,
+    quietness: 0.9,
     gradientPercent: 0.3,
     wantsClimb: false,
     crossings: 0,
@@ -174,10 +184,10 @@ describe('segmentQuality — conversational sessions (decision 17)', () => {
   })
 
   it('a long ordinary stretch outranks a tiny perfect loop', () => {
-    const tinyPerfectLoop = { ...conv, minQuietness: 1, gradientPercent: 0, lengthMeters: 40 }
+    const tinyPerfectLoop = { ...conv, quietness: 1, gradientPercent: 0, lengthMeters: 40 }
     const decentLongStretch = {
       ...conv,
-      minQuietness: 0.7,
+      quietness: 0.7,
       gradientPercent: 1,
       lengthMeters: 2800,
       crossings: 2,
@@ -189,6 +199,26 @@ describe('segmentQuality — conversational sessions (decision 17)', () => {
     expect(segmentQuality({ ...conv, lengthMeters: 6000 })).toBe(
       segmentQuality({ ...conv, lengthMeters: 3000 }),
     )
+  })
+
+  it('judges gradient on a gentler curve than work stretches', () => {
+    // At 4.3% the work flatness curve is nearly zero; a conversational run
+    // barely notices rolling ground (terrain-tile noise must not crater it).
+    const work = { ...conv, conversationalTargetMeters: null }
+    const workDrop =
+      segmentQuality({ ...work, gradientPercent: 0 }) -
+      segmentQuality({ ...work, gradientPercent: 4.3 })
+    const convDrop =
+      segmentQuality({ ...conv, gradientPercent: 0 }) -
+      segmentQuality({ ...conv, gradientPercent: 4.3 })
+    expect(convDrop).toBeLessThan(workDrop / 2)
+  })
+
+  it('a long rolling stretch outranks a short flat one', () => {
+    // The live BS1 5AU failure: 2067m at 4.3% ranked below 933m at 0.8%.
+    const long = { ...conv, quietness: 0.7, gradientPercent: 4.3, lengthMeters: 2067 }
+    const short = { ...conv, quietness: 0.9, gradientPercent: 0.8, lengthMeters: 933 }
+    expect(segmentQuality(long)).toBeGreaterThan(segmentQuality(short))
   })
 })
 
