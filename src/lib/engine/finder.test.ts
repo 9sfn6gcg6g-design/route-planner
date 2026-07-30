@@ -151,3 +151,50 @@ describe('findWorkSegments', () => {
     expect(calls).toHaveLength(0)
   })
 })
+
+/** A way from explicit [lat, lon] points, so junction bearings are controlled. */
+function pointWay(id: number, nodeIds: number[], pts: Array<[number, number]>): OsmWay {
+  return {
+    id,
+    tags: { highway: 'residential', surface: 'asphalt' },
+    nodeIds,
+    points: pts.map(([lat, lon]) => ({ lat, lon })),
+  }
+}
+
+describe('findWorkSegments — turn-aware stretches (decision 15)', () => {
+  // A→J heads north (~556m), short of the 800m interval floor on its own.
+  const A: [number, number] = [51.45, -2.58]
+  const Jn: [number, number] = [51.455, -2.58]
+
+  it('extends a sub-floor corridor across a left turn to qualify, crossing-free', async () => {
+    const W: [number, number] = [51.455, -2.587] // left turn off the northward approach
+    const E: [number, number] = [51.455, -2.573] // right turn
+    const N: [number, number] = [51.46, -2.58] // straight on
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, Jn]),
+      pointWay(2, [20, 30], [Jn, W]),
+      pointWay(3, [20, 40], [Jn, E]),
+      pointWay(4, [20, 50], [Jn, N]),
+    ])
+    const results = await findWorkSegments(graph, start, intervals, flatSampler)
+    expect(results.length).toBeGreaterThan(0)
+    // The approach alone is < 800m; only assembly across the turn qualifies.
+    expect(Math.max(...results.map((r) => r.lengthMeters))).toBeGreaterThan(800)
+    expect(results[0].crossings).toBe(0)
+  })
+
+  it('still returns a stretch when only a straight crossing reaches the floor, caveated', async () => {
+    const N: [number, number] = [51.46, -2.58] // straight on (a crossing)
+    const Bk: [number, number] = [51.45, -2.582] // doubles back — never taken
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, Jn]),
+      pointWay(2, [20, 50], [Jn, N]),
+      pointWay(3, [20, 60], [Jn, Bk]),
+    ])
+    const results = await findWorkSegments(graph, start, intervals, flatSampler)
+    expect(results.length).toBeGreaterThan(0)
+    // No crossing-free stretch reaches 800m here, so the best is crossing-bearing.
+    expect(results[0].crossings).toBe(1)
+  })
+})
