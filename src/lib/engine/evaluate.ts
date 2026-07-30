@@ -16,7 +16,14 @@ export function chainMinQuietness(chain: Chain): number {
  * (decision 16). Quietness leads; gradient fit and crossing-freeness follow.
  * The weights sum to 1 so quality lands in [0, 1]. v1 constants, tunable.
  */
-const QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.25, crossingFree: 0.3 }
+const WORK_QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.25, crossingFree: 0.3 }
+
+/**
+ * Conversational sessions (decision 17) tolerate crossings: crossing-freeness
+ * is replaced by length-fit — stretch length over the capped work-phase
+ * target, clamped to 1. Weights sum to 1. v1 constants, tunable.
+ */
+const CONVERSATIONAL_QUALITY_WEIGHTS = { quietness: 0.45, gradient: 0.2, lengthFit: 0.35 }
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 
@@ -45,11 +52,24 @@ export function segmentQuality(params: {
   gradientPercent: number
   wantsClimb: boolean
   crossings: number
+  lengthMeters: number
+  /** Capped work-phase target for conversational sessions (decision 17); null = work stretch. */
+  conversationalTargetMeters: number | null
 }): number {
-  const w = QUALITY_WEIGHTS
+  const quietness = clamp01(params.minQuietness)
+  const gradient = gradientFit(params.gradientPercent, params.wantsClimb)
+  if (params.conversationalTargetMeters !== null) {
+    const w = CONVERSATIONAL_QUALITY_WEIGHTS
+    return (
+      w.quietness * quietness +
+      w.gradient * gradient +
+      w.lengthFit * clamp01(params.lengthMeters / params.conversationalTargetMeters)
+    )
+  }
+  const w = WORK_QUALITY_WEIGHTS
   return (
-    w.quietness * clamp01(params.minQuietness) +
-    w.gradient * gradientFit(params.gradientPercent, params.wantsClimb) +
+    w.quietness * quietness +
+    w.gradient * gradient +
     w.crossingFree * crossingFreeness(params.crossings)
   )
 }

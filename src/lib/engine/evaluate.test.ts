@@ -106,7 +106,14 @@ describe('evaluateChain — gradient checks', () => {
 })
 
 describe('segmentQuality (decision 16)', () => {
-  const base = { minQuietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+  const base = {
+    minQuietness: 0.9,
+    gradientPercent: 0.3,
+    wantsClimb: false,
+    crossings: 0,
+    lengthMeters: 1000,
+    conversationalTargetMeters: null,
+  }
 
   it('is a calibrated 0–1 score', () => {
     const q = segmentQuality(base)
@@ -124,7 +131,13 @@ describe('segmentQuality (decision 16)', () => {
     expect(segmentQuality({ ...base, gradientPercent: 0.2 })).toBeGreaterThan(
       segmentQuality({ ...base, gradientPercent: 0.9 }),
     )
-    const climb = { minQuietness: 0.9, wantsClimb: true, crossings: 0 }
+    const climb = {
+      minQuietness: 0.9,
+      wantsClimb: true,
+      crossings: 0,
+      lengthMeters: 1000,
+      conversationalTargetMeters: null,
+    }
     expect(segmentQuality({ ...climb, gradientPercent: 9 })).toBeGreaterThan(
       segmentQuality({ ...climb, gradientPercent: 5 }),
     )
@@ -136,6 +149,45 @@ describe('segmentQuality (decision 16)', () => {
     )
     expect(segmentQuality({ ...base, crossings: 1 })).toBeGreaterThan(
       segmentQuality({ ...base, crossings: 3 }),
+    )
+  })
+})
+
+describe('segmentQuality — conversational sessions (decision 17)', () => {
+  const conv = {
+    minQuietness: 0.9,
+    gradientPercent: 0.3,
+    wantsClimb: false,
+    crossings: 0,
+    lengthMeters: 2000,
+    conversationalTargetMeters: 3000,
+  }
+
+  it('crossings carry no ranking penalty', () => {
+    expect(segmentQuality({ ...conv, crossings: 3 })).toBe(segmentQuality(conv))
+  })
+
+  it('rewards stretches nearer the target length', () => {
+    expect(segmentQuality({ ...conv, lengthMeters: 2500 })).toBeGreaterThan(
+      segmentQuality({ ...conv, lengthMeters: 500 }),
+    )
+  })
+
+  it('a long ordinary stretch outranks a tiny perfect loop', () => {
+    const tinyPerfectLoop = { ...conv, minQuietness: 1, gradientPercent: 0, lengthMeters: 40 }
+    const decentLongStretch = {
+      ...conv,
+      minQuietness: 0.7,
+      gradientPercent: 1,
+      lengthMeters: 2800,
+      crossings: 2,
+    }
+    expect(segmentQuality(decentLongStretch)).toBeGreaterThan(segmentQuality(tinyPerfectLoop))
+  })
+
+  it('length-fit saturates at the target', () => {
+    expect(segmentQuality({ ...conv, lengthMeters: 6000 })).toBe(
+      segmentQuality({ ...conv, lengthMeters: 3000 }),
     )
   })
 })
