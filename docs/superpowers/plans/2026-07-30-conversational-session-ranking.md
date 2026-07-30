@@ -341,7 +341,7 @@ return { plan, requirements: work.requirements, segments }
 ### Task 4: Full verification and live check
 
 - [x] **Step 1:** `npm run lint && npm run typecheck && npm test` — all green.
-- [ ] **Step 2:** `npm run dev`; enter BS1 5AU, easy, 10 km. Verify: no
+- [x] **Step 2:** `npm run dev`; enter BS1 5AU, easy, 10 km. Verify: no
   "0.0 km" results; top results are ≥ ~1 km stretches; crossings shown as
   caveats, not score-killers. Tune the four constants if the live results
   argue for it (they are the only knobs).
