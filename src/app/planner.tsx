@@ -151,7 +151,7 @@ function PaceField({
     <Field label="Target pace" hint="mm:ss per km" error={error}>
       <input
         className={inputClass}
-        inputMode="numeric"
+        inputMode="text"
         placeholder="e.g. 5:10"
         value={value}
         onChange={(e) => onChange('targetPace', e.target.value)}
