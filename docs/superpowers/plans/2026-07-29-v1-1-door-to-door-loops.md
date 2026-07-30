@@ -70,11 +70,19 @@ no new runtime services, **no API keys**. Reuse `geo.ts`, `chains.ts`, `finder.t
 
 ## Slice D — Distance-correct continuous loops (easy / long / tempo)
 
-- [ ] Generate a loop of ~target distance (± tolerance) from quiet ground for
+- [x] Generate a loop of ~target distance (± tolerance) from quiet ground for
       easy/long/tempo, so an 8 km ask yields an ~8 km loop. Likely a new finder mode
       (quiet-loop search on the graph) rather than the single-stretch finder. Decide the
       approach and, if it forces a scorer/interface change, **stop and raise it** per
       `AGENTS.md` rather than reshaping unilaterally.
+      *(Landed 2026-07-30 for **easy/long**: `engine/loop.ts` assembles a greedy
+      waypoint tour — legs spread away from visited ground with used edges
+      penalized, then home — reaching the ask even when the fetch disc is far
+      smaller than the session; `planner/plan-loop.ts` composes it with a
+      distance-scaled Overpass radius; the UI shows the loop with honest
+      length vs target. Live BS1 5AU: 10 km easy → 9.1 km door-to-door loop.
+      No scorer change needed. **Tempo** deferred to slice C — its loop must
+      embed the found work stretch, which is C's assembly machinery.)*
 - [ ] Revisit `terrainRequirementsFor` for continuous types now that distance is
       honoured by assembly (the `minUninterruptedMeters: null` gap).
 
