@@ -118,7 +118,12 @@ everything.
     conversational, not merely "no floor"). Engine consequences: (a) stretch
     assembly extends conversational stretches toward the session's work-phase
     distance, capped by realistic search reach, instead of not extending at
-    all; (b) quality (decision 16) for conversational stretches blends
+    all — and it extends by **flow**, preferring the quietest *sustained*
+    continuation (sliver corridors discounted) rather than decision 15's
+    turn-before-crossing order, which exists to dodge crossings that
+    conversational sessions tolerate (observed at BS1 5AU: the turn order
+    walked off the harbourside quay onto a 7 m fragment); (b) quality
+    (decision 16) for conversational stretches blends
     quietness (0.45), gradient fit (0.20) and **length-fit** (0.35 — stretch
     length over the capped target, clamped to 1), replacing crossing-freeness;
     (c) a light length floor keeps degenerate fragments (the "0.0 km"
