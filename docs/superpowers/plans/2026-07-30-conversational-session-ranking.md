@@ -379,5 +379,42 @@ gate-passing ≥400 m stretches from 258 to 326. Decision 17 amended first
   in `stretches.ts`; finder passes `continuation: 'flow'` for conversational.
 - [x] **Step 4:** `lint`/`typecheck`/full suite green (238 tests).
 - [x] **Step 5:** Commit — `feat: flow continuation for conversational stretch assembly`
-- [ ] **Step 6:** Live BS1 5AU re-check: top stretches should now follow the
-  harbourside instead of stopping at 0.9 km.
+- [x] **Step 6:** Live BS1 5AU re-check: top stretches should now follow the
+  harbourside instead of stopping at 0.9 km. (Inconclusive alone — flow fixed
+  assembly, but ranking still buried the long stretches; see Task 6.)
+
+### Task 6: Mean quietness and gentle gradient for conversational ranking
+
+**Files:**
+- Modify: `src/lib/engine/evaluate.ts`, `src/lib/engine/finder.ts`
+- Test: `src/lib/engine/evaluate.test.ts`
+
+**Why (live evidence, instrumented finder at BS1 5AU):** after flow, the
+finder assembled and gate-passed 2.0–2.1 km stretches, but they ranked below
+a 0.9 km flat quay fragment: real terrain-tile elevation read 4.3–4.5 % on
+them, and the work flatness curve (`1 − g/5`) crushed that to a 0.14 fit;
+min-quietness likewise capped a 2 km stretch at its single worst edge.
+Decision 17 amended first (own commit): conversational ranking uses the
+**length-weighted mean** quietness (gates keep the minimum), a gentler
+gradient curve (`1 − g/10`), and weights quietness 0.45 / gradient 0.15 /
+length-fit 0.40.
+
+**Interfaces:**
+- Produces: `chainMeanQuietness(chain: Chain): number` exported from
+  `evaluate.ts`; `segmentQuality`'s quietness param renamed `minQuietness` →
+  `quietness` (the caller picks the statistic — finder passes mean for
+  conversational, min for work).
+
+- [x] **Step 1:** Failing tests — `chainMeanQuietness` length-weighted mean;
+  gentler-curve comparison (conversational drop < half the work drop at
+  4.3 %); the live regression pinned: 2067 m @ 4.3 % must outrank 933 m @
+  0.8 %.
+- [x] **Step 2:** Verified red (9 failures).
+- [x] **Step 3:** Implement: `chainMeanQuietness`, `conversationalGradientFit`
+  (`1 − g/10`), reweighted `CONVERSATIONAL_QUALITY_WEIGHTS`, finder passes the
+  mean for conversational stretches.
+- [x] **Step 4:** `lint`/`typecheck`/full suite green (239 tests).
+- [x] **Step 5:** Commit — `feat: rank conversational stretches by mean quietness and gentle gradient`
+- [x] **Step 6:** Live BS1 5AU re-check: top-5 now 1.9–2.1 km at 67–75 %
+  quality with honest "Crosses N roads" caveats; the lead stretch follows the
+  New Cut riverside path. (Was: five 0.0 km loops at ~100 %.)
