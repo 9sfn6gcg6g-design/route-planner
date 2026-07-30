@@ -12,6 +12,8 @@ import { fetchOpenElevations } from '@/lib/engine/open-elevation'
 import { withElevationFailover } from '@/lib/engine/elevation-chain'
 import { geocodePostcode, PostcodeNotFoundError } from '@/lib/engine/geocode'
 import { planRoute } from '@/lib/planner/plan-route'
+import { LoopUnreachableError, planLoop } from '@/lib/planner/plan-loop'
+import type { LoopRoute } from '@/lib/engine/loop'
 import { buildGpxTrack } from '@/lib/export/gpx'
 import {
   crossingCaveat,
@@ -113,6 +115,13 @@ type RunState =
       segments: WorkSegment[]
       radiusMeters: number
     }
+  | {
+      status: 'done-loop'
+      session: Session
+      start: LatLon
+      loop: LoopRoute
+      targetMeters: number
+    }
 
 function SectionHead({ num, title }: { num: string; title: string }) {
   return (
@@ -175,7 +184,7 @@ function PaceField({
   )
 }
 
-function downloadGpx(session: Session, segment: WorkSegment) {
+function downloadGpx(session: Session, segment: { points: LatLon[] }) {
   const pace = sessionPace(session)
   const gpx = buildGpxTrack(segment.points, {
     name: sessionSummary(session),
@@ -255,6 +264,20 @@ export default function Planner() {
     setSelected(0)
     setRun({ status: 'loading' })
     try {
+      // Conversational sessions get a door-to-door loop of the asked distance
+      // (v1.1 slice D); structured sessions keep the ranked-stretch flow until
+      // slice C assembles their loops too.
+      if (session.type === 'easy' || session.type === 'long') {
+        const result = await planLoop(session, startPoint, { fetchWays })
+        setRun({
+          status: 'done-loop',
+          session,
+          start: startPoint,
+          loop: result.loop,
+          targetMeters: result.targetMeters,
+        })
+        return
+      }
       const plan = await planRoute(
         session,
         startPoint,
@@ -262,11 +285,13 @@ export default function Planner() {
         { searchRadiusMeters: radiusMeters },
       )
       setRun({ status: 'done', session, start: startPoint, segments: plan.segments, radiusMeters })
-    } catch {
+    } catch (err) {
       setRun({
         status: 'error',
         message:
-          'Could not search right now — the map or elevation service may be busy. Please try again in a moment.',
+          err instanceof LoopUnreachableError
+            ? 'The street network around your start is too small for a loop of that distance — try a shorter distance or a different start point.'
+            : 'Could not search right now — the map or elevation service may be busy. Please try again in a moment.',
       })
     }
   }
@@ -512,6 +537,47 @@ function Results({
   }
   if (run.status === 'error') {
     return <p className="text-sm text-red-700 dark:text-red-400">{run.message}</p>
+  }
+
+  if (run.status === 'done-loop') {
+    const { session, start, loop, targetMeters } = run
+    return (
+      <section className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-rule pb-2">
+          <span className="font-mono text-[0.7rem] tracking-[0.2em] text-accent-ink">03</span>
+          <h2 className="font-serif text-lg font-normal tracking-tight">Your route</h2>
+          <span className="ml-auto font-mono text-[0.7rem] tracking-wide text-ink-faint">
+            for {sessionSummary(session)}
+          </span>
+        </div>
+
+        <RouteMap start={start} route={loop.points} />
+
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-2 border-accent bg-paper-warm px-4 py-3">
+          <span className="font-serif text-base">{formatKm(loop.lengthMeters)} loop</span>
+          <span className="tabular font-mono text-[0.7rem] tracking-wide text-ink-soft">
+            target {formatKm(targetMeters)} · Quietness {formatQuality(loop.meanQuietness)}
+          </span>
+          {loop.overlapFraction > 0.8 && (
+            <span className="font-mono text-[0.7rem] tracking-wide text-accent-ink">
+              Mostly out-and-back — the network here has few alternatives
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => downloadGpx(session, loop)}
+          className="self-start rounded-sm border border-ink px-6 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink transition hover:bg-ink hover:text-paper"
+        >
+          Download GPX
+        </button>
+        <p className="font-mono text-[0.7rem] leading-relaxed tracking-wide text-ink-faint">
+          Map data © OpenStreetMap contributors. A door-to-door loop from your start, matched to the
+          session distance on the quietest ground the search found.
+        </p>
+      </section>
+    )
   }
 
   const { session, start, segments } = run
