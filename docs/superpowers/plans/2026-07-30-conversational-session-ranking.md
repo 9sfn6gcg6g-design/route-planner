@@ -349,3 +349,35 @@ return { plan, requirements: work.requirements, segments }
   (scorecard: Impact 🟡 — ranking changes for easy/long only; Breaking 🟢 —
   `segmentQuality` signature change is internal to `engine`; Review priority
   🟡 — touches `evaluate.ts` where the segment-quality plan is 6/7).
+
+### Task 5: Flow continuation for conversational assembly (tuning round)
+
+**Files:**
+- Modify: `src/lib/engine/stretches.ts`, `src/lib/engine/finder.ts`
+- Test: `src/lib/engine/stretches.test.ts`, `src/lib/engine/finder.test.ts`
+
+**Why (evidence from live BS1 5AU data, 2,846 walks):** decision 15's
+left>right>straight continuation walked off the harbourside quay onto a 7 m
+sliver (turns exist to dodge crossings, which conversational sessions
+tolerate); 2,841 walks ended with no reachable continuation and none reached
+the 3 km cap. A "flow" rule — quietest sustained corridor first, sliver
+corridors discounted below 200 m — reached the cap on real data and raised
+gate-passing ≥400 m stretches from 258 to 326. Decision 17 amended first
+(own commit) to record flow.
+
+**Interfaces:**
+- Produces: `AssembleOptions.continuation?: 'turns' | 'flow'` (default
+  `'turns'`, unchanged for work stretches); the finder passes `'flow'` when
+  `requirements.minUninterruptedMeters === null`.
+
+- [x] **Step 1:** Failing tests — sliver-left vs sustained-straight fixture in
+  `stretches.test.ts` (turns takes the sliver; flow takes the path and still
+  tallies the crossing) and a finder test proving conversational sessions get
+  flow (top length > 1000 m only if the long path is followed).
+- [x] **Step 2:** Verified both fail (turns behaviour everywhere).
+- [x] **Step 3:** Implement `continuation` option + `FLOW_SUSTAIN_METERS = 200`
+  in `stretches.ts`; finder passes `continuation: 'flow'` for conversational.
+- [x] **Step 4:** `lint`/`typecheck`/full suite green (238 tests).
+- [x] **Step 5:** Commit — `feat: flow continuation for conversational stretch assembly`
+- [ ] **Step 6:** Live BS1 5AU re-check: top stretches should now follow the
+  harbourside instead of stopping at 0.9 km.

@@ -88,7 +88,11 @@ export async function findWorkSegments(
       : null
   const stretchOptions =
     conversationalTargetMeters !== null
-      ? { targetMeters: conversationalTargetMeters, maxHops: CONVERSATIONAL_MAX_HOPS }
+      ? {
+          targetMeters: conversationalTargetMeters,
+          maxHops: CONVERSATIONAL_MAX_HOPS,
+          continuation: 'flow' as const,
+        }
       : { targetMeters: requirements.minUninterruptedMeters ?? 0 }
 
   const candidates: Array<{ chain: Chain; distance: number; crossings: number }> = []

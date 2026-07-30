@@ -211,6 +211,22 @@ describe('findWorkSegments — conversational sessions (decision 17)', () => {
     expect(results[0].lengthMeters).toBeGreaterThan(2000)
   })
 
+  it('follows sustained paths instead of sliver turns (flow continuation)', async () => {
+    const A: [number, number] = [51.45, -2.588]
+    const J: [number, number] = [51.45, -2.58]
+    const NearN: [number, number] = [51.4501, -2.58] // ~11m sliver left turn
+    const E: [number, number] = [51.45, -2.572] // long straight continuation
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, J]),
+      pointWay(2, [20, 30], [J, NearN]),
+      pointWay(3, [20, 50], [J, E]),
+    ])
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+    })
+    expect(Math.max(...results.map((r) => r.lengthMeters))).toBeGreaterThan(1000)
+  })
+
   it('still reports crossings as an annotation', async () => {
     // Straight-on is the only usable continuation at a degree-3 junction: a
     // crossing — tolerated for easy, but still tallied for the UI caveat.

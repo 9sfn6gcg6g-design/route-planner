@@ -61,6 +61,32 @@ describe('assembleStretches — turn preference', () => {
   })
 })
 
+describe('assembleStretches — flow continuation (decision 17)', () => {
+  // Left branch is an ~11m sliver; straight-on is a long path of equal
+  // quietness. Decision 15's turn order walks onto the sliver; decision 17's
+  // flow follows the sustained path (a fragmented waterfront, in the wild).
+  const NearN: [number, number] = [51.4501, -2.58]
+  const ways = [way(1, [10, 20], [A, J]), way(2, [20, 30], [J, NearN]), way(4, [20, 50], [J, E])]
+
+  it('turn order (default) walks off onto the sliver left turn', () => {
+    const graph = buildGraph(ways)
+    const stretch = assembleStretches(graph, { targetMeters: 900 }).find(
+      (s) => s.chain.startNodeId === 10,
+    )
+    expect(stretch!.chain.endNodeId).toBe(30) // took the 11m left sliver
+  })
+
+  it('flow follows the sustained path instead, still tallying the crossing', () => {
+    const graph = buildGraph(ways)
+    const stretch = assembleStretches(graph, {
+      targetMeters: 900,
+      continuation: 'flow',
+    }).find((s) => s.chain.startNodeId === 10)
+    expect(stretch!.chain.endNodeId).toBe(50) // straight along the long path
+    expect(stretch!.crossings).toBe(1)
+  })
+})
+
 describe('assembleStretches — invariants', () => {
   const graph = buildGraph(parseOverpassResponse(fixture))
 
