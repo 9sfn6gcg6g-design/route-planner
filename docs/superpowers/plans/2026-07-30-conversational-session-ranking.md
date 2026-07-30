@@ -61,7 +61,7 @@ tests).
   work-stretch blend (unchanged behaviour); non-null = conversational blend.
   Task 2's finder calls exactly this signature.
 
-- [ ] **Step 1: Write the failing tests** — in `evaluate.test.ts`, extend the
+- [x] **Step 1: Write the failing tests** — in `evaluate.test.ts`, extend the
   existing `base` fixture with the two new params and add a decision-17 block:
 
 ```ts
@@ -115,9 +115,9 @@ describe('segmentQuality — conversational sessions (decision 17)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure** — `npm test -- evaluate` — the new
+- [x] **Step 2: Run to verify failure** — `npm test -- evaluate` — the new
   block fails (extra params are unknown to the current signature → TS error).
-- [ ] **Step 3: Implement** — rename `QUALITY_WEIGHTS` →
+- [x] **Step 3: Implement** — rename `QUALITY_WEIGHTS` →
   `WORK_QUALITY_WEIGHTS`, add the conversational constant and branch:
 
 ```ts
@@ -157,9 +157,9 @@ export function segmentQuality(params: {
 }
 ```
 
-- [ ] **Step 4: Run to verify pass** — `npm test -- evaluate` all green
+- [x] **Step 4: Run to verify pass** — `npm test -- evaluate` all green
   (existing decision-16 tests updated only by the two new `base` fields).
-- [ ] **Step 5: Commit** — `feat: conversational quality blend without crossing cost`
+- [x] **Step 5: Commit** — `feat: conversational quality blend without crossing cost`
 
 ### Task 2: Finder — extend, floor, and rank conversational stretches
 
@@ -173,7 +173,7 @@ export function segmentQuality(params: {
   phase length; used only when `requirements.minUninterruptedMeters === null`).
   Task 3 passes it from the planner.
 
-- [ ] **Step 1: Write the failing tests** — add to `finder.test.ts`:
+- [x] **Step 1: Write the failing tests** — add to `finder.test.ts`:
 
 ```ts
 const easy: TerrainRequirements = {
@@ -233,9 +233,9 @@ describe('findWorkSegments — conversational sessions (decision 17)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure** — `npm test -- finder` — extension and
+- [x] **Step 2: Run to verify failure** — `npm test -- finder` — extension and
   ranking tests fail (no extension happens; `workTargetMeters` unknown).
-- [ ] **Step 3: Implement** in `finder.ts`:
+- [x] **Step 3: Implement** in `finder.ts`:
 
 ```ts
 /** Decision 17: conversational assembly and ranking constants. Tunable. */
@@ -273,9 +273,9 @@ if (
 //   conversationalTargetMeters,
 ```
 
-- [ ] **Step 4: Run to verify pass** — `npm test -- finder` all green
+- [x] **Step 4: Run to verify pass** — `npm test -- finder` all green
   (existing work-stretch tests untouched and passing).
-- [ ] **Step 5: Commit** — `feat: extend and rank conversational stretches by length-fit`
+- [x] **Step 5: Commit** — `feat: extend and rank conversational stretches by length-fit`
 
 ### Task 3: Planner threads the work-phase target
 
@@ -288,7 +288,7 @@ if (
 - Produces: no signature change — `planRoute` internally passes the compiled
   work phase's `targetMeters` to the finder.
 
-- [ ] **Step 1: Write the failing test** — the compiled target caps assembly,
+- [x] **Step 1: Write the failing test** — the compiled target caps assembly,
   so a short easy session must stop extending where a long one keeps going:
 
 ```ts
@@ -310,9 +310,9 @@ it('threads the work-phase distance into conversational assembly (decision 17)',
 
   (Add the same `pointWay` helper used in `finder.test.ts` to this file.)
 
-- [ ] **Step 2: Run to verify failure** — `npm test -- plan-route` — both
+- [x] **Step 2: Run to verify failure** — `npm test -- plan-route` — both
   sessions behave identically because the target is never passed.
-- [ ] **Step 3: Implement** — in `plan-route.ts`, return the whole phase from
+- [x] **Step 3: Implement** — in `plan-route.ts`, return the whole phase from
   the guard and thread its target:
 
 ```ts
@@ -335,12 +335,12 @@ const segments = await findWorkSegments(graph, start, work.requirements, deps.sa
 return { plan, requirements: work.requirements, segments }
 ```
 
-- [ ] **Step 4: Run to verify pass** — `npm test -- plan-route` all green.
-- [ ] **Step 5: Commit** — `feat: thread session distance into conversational stretch finding`
+- [x] **Step 4: Run to verify pass** — `npm test -- plan-route` all green.
+- [x] **Step 5: Commit** — `feat: thread session distance into conversational stretch finding`
 
 ### Task 4: Full verification and live check
 
-- [ ] **Step 1:** `npm run lint && npm run typecheck && npm test` — all green.
+- [x] **Step 1:** `npm run lint && npm run typecheck && npm test` — all green.
 - [ ] **Step 2:** `npm run dev`; enter BS1 5AU, easy, 10 km. Verify: no
   "0.0 km" results; top results are ≥ ~1 km stretches; crossings shown as
   caveats, not score-killers. Tune the four constants if the live results
