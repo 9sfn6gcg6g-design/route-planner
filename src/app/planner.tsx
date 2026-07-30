@@ -15,10 +15,9 @@ import { planRoute } from '@/lib/planner/plan-route'
 import { buildGpxTrack } from '@/lib/export/gpx'
 import {
   crossingCaveat,
-  formatGradient,
   formatKm,
   formatPace,
-  formatPercent01,
+  formatQuality,
   gpxFileName,
   sessionSummary,
 } from '@/lib/results/format'
@@ -579,8 +578,7 @@ function Results({
                 <span className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className="font-serif text-base">{formatKm(segment.lengthMeters)}</span>
                   <span className="tabular font-mono text-[0.7rem] tracking-wide text-ink-soft">
-                    {formatPercent01(segment.minQuietness)} quiet ·{' '}
-                    {formatGradient(segment.avgAbsGradientPercent)} grade ·{' '}
+                    Quality {formatQuality(segment.quality)} ·{' '}
                     {formatKm(segment.distanceFromStartMeters)} away
                   </span>
                   {crossingCaveat(segment.crossings) && (

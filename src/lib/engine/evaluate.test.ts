@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TerrainRequirements } from '@/lib/domain/types'
-import { chainMinQuietness, evaluateChain } from './evaluate'
+import { chainMinQuietness, evaluateChain, segmentQuality } from './evaluate'
 import type { Chain, RunEdge, SurfaceKind } from './types'
 
 function edge(lengthMeters: number, quietness: number, surface: SurfaceKind): RunEdge {
@@ -105,21 +105,38 @@ describe('evaluateChain — gradient checks', () => {
   })
 })
 
-describe('scoring', () => {
-  it('prefers quieter chains, all else equal', () => {
-    const quiet = evaluateChain(chain([edge(1000, 0.9, 'paved')]), intervals, 0.3)
-    const louder = evaluateChain(chain([edge(1000, 0.7, 'paved')]), intervals, 0.3)
-    expect(quiet.score).toBeGreaterThan(louder.score)
+describe('segmentQuality (decision 16)', () => {
+  const base = { minQuietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+
+  it('is a calibrated 0–1 score', () => {
+    const q = segmentQuality(base)
+    expect(q).toBeGreaterThan(0)
+    expect(q).toBeLessThanOrEqual(1)
   })
 
-  it('prefers flatter chains for flat sessions and steeper for hills', () => {
-    const flat = evaluateChain(chain([edge(1000, 0.9, 'paved')]), intervals, 0.2)
-    const rolling = evaluateChain(chain([edge(1000, 0.9, 'paved')]), intervals, 0.9)
-    expect(flat.score).toBeGreaterThan(rolling.score)
+  it('prefers quieter stretches, all else equal', () => {
+    expect(segmentQuality({ ...base, minQuietness: 0.9 })).toBeGreaterThan(
+      segmentQuality({ ...base, minQuietness: 0.7 }),
+    )
+  })
 
-    const steep = evaluateChain(chain([edge(500, 0.9, 'paved')]), hills, 9)
-    const gentle = evaluateChain(chain([edge(500, 0.9, 'paved')]), hills, 5)
-    expect(steep.score).toBeGreaterThan(gentle.score)
+  it('prefers flatter for flat sessions and steeper for climbs', () => {
+    expect(segmentQuality({ ...base, gradientPercent: 0.2 })).toBeGreaterThan(
+      segmentQuality({ ...base, gradientPercent: 0.9 }),
+    )
+    const climb = { minQuietness: 0.9, wantsClimb: true, crossings: 0 }
+    expect(segmentQuality({ ...climb, gradientPercent: 9 })).toBeGreaterThan(
+      segmentQuality({ ...climb, gradientPercent: 5 }),
+    )
+  })
+
+  it('prefers crossing-free stretches, all else equal', () => {
+    expect(segmentQuality({ ...base, crossings: 0 })).toBeGreaterThan(
+      segmentQuality({ ...base, crossings: 1 }),
+    )
+    expect(segmentQuality({ ...base, crossings: 1 })).toBeGreaterThan(
+      segmentQuality({ ...base, crossings: 3 }),
+    )
   })
 })
 

@@ -1,7 +1,7 @@
 import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
 import { assembleStretches } from './stretches'
-import { evaluateChain } from './evaluate'
+import { evaluateChain, segmentQuality } from './evaluate'
 import { avgAbsGradientPercent } from './elevation'
 import { cumulativeMeters, haversineMeters } from './geo'
 import { resamplePoints } from './resample'
@@ -26,7 +26,8 @@ export interface WorkSegment {
   avgAbsGradientPercent: number
   /** Forced road crossings on this stretch (decision 15); 0 = crossing-free. */
   crossings: number
-  score: number
+  /** Single calibrated 0–1 quality (decision 16); the list is ranked and shown by it. */
+  quality: number
 }
 
 function distanceFromStart(start: LatLon, chain: Chain): number {
@@ -89,6 +90,12 @@ export async function findWorkSegments(
       const gradient = avgAbsGradientPercent(slice, cumulativeMeters(resampled))
       const evaluation = evaluateChain(chain, requirements, gradient)
       if (!evaluation.passes) continue
+      const quality = segmentQuality({
+        minQuietness: evaluation.minQuietness,
+        gradientPercent: gradient,
+        wantsClimb: requirements.minAvgGradientPercent !== null,
+        crossings,
+      })
       results.push({
         points: chain.points,
         lengthMeters: chain.lengthMeters,
@@ -97,13 +104,12 @@ export async function findWorkSegments(
         minQuietness: evaluation.minQuietness,
         avgAbsGradientPercent: gradient,
         crossings,
-        score: evaluation.score,
+        quality,
       })
     }
   }
 
-  // Crossing-free stretches first (decision 15), then by quality score.
-  return results
-    .sort((a, b) => a.crossings - b.crossings || b.score - a.score)
-    .slice(0, maxResults)
+  // Rank by the single quality score (decision 16). Crossings are weighted into
+  // quality, so crossing-free stretches lead all else equal without a hard gate.
+  return results.sort((a, b) => b.quality - a.quality).slice(0, maxResults)
 }

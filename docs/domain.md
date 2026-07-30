@@ -81,6 +81,26 @@ everything.
     intervals, hills). The precise junction geometry — how left/right/straight
     are decided, and which highway classes count as a "major" crossing — is
     fixed in the implementing plan, not here.
+16. **A segment has one quality score, 0–1, shown as a percentage
+    (2026-07-30).** The finder ranks candidate work segments, and the UI
+    presents them, by a single calibrated **quality** score — a weighted blend
+    of **quietness** (0.45), **gradient fit** (0.25; flatness, or steepness when
+    the session wants climb) and **crossing-freeness** (0.30; `1/(1+crossings)`,
+    where `crossings` is decision 15's forced-stop count). It replaces the
+    earlier unbounded ranking heuristic: because it is surfaced to the runner
+    ("Quality 87%"), it must be a real 0–1 quantity. Quality **only orders
+    segments that already qualify**; the hard `TerrainRequirements` (length,
+    quietness floor, surface, junction density, gradient bounds) remain separate
+    pass/fail gates. This **refines decision 15's *ranking***: crossings are now
+    weighted *into* quality rather than being a strict crossing-free-first
+    primary sort, so a much quieter/flatter stretch can outrank one with a
+    crossing — but crossing-freeness is weighted heavily enough that, all else
+    equal, crossing-free still leads. Decision 15's **assembly** behaviour (turn
+    before crossing; left before right) and its **explicit caveat** ("crosses N
+    roads", shown alongside the score) are unchanged. The blend weights are v1
+    constants in `engine/evaluate.ts`, tunable, and are the natural home for
+    future signals (decision 7) — a new signal slots in as another weighted
+    dimension without reshaping the interface.
 
 ---
 
