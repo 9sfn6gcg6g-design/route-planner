@@ -76,17 +76,19 @@ are independent and ship as separate PR slices.
 
 ### Slice 2 — Input boundary: form + parse
 
-- [ ] `session-input/parse.ts`: parse `mm:ss` (or plain sec) pace → seconds/km
-      with friendly errors; add tempo `reps`/`recovery` fields; convert at edge.
-- [ ] `src/app/planner.tsx` (+ form): pace input on tempo/intervals/hills;
-      reps/recovery on tempo. Sensible defaults over knobs (USP: ease).
-- [ ] Tests for pace parsing (valid `mm:ss`, bad input, plain seconds).
+- [x] `session-input/parse.ts`: parse `mm:ss` pace → seconds/km with friendly
+      errors; tempo `reps`/`recovery` fields (landed in Slice 1).
+- [x] `src/app/planner.tsx` (+ form): pace input on tempo/intervals/hills;
+      reps/recovery on tempo; tempo defaults to a single block (reps 1) and
+      hides the recovery selector until reps > 1. Sensible defaults (USP: ease).
+- [x] Tests for pace parsing (valid `mm:ss`, bad input) — in Slice 1's parse.
 
 ### Slice 3 — Export/results surfacing (v1 scope)
 
-- [ ] Surface target pace in the results view and the GPX `<desc>`/name.
-      Structured per-step watch targets (TCX/FIT) are **post-v1** — note, don't
-      build. (Decision 3: planning tool; v1 is GPX + map.)
+- [x] Results view shows the target pace beside the session summary and a
+      "Crosses N roads" caveat per stretch; GPX gains a `<desc>` carrying the
+      target pace. Structured per-step watch targets (TCX/FIT) stay **post-v1**
+      (decision 3: planning tool; v1 is GPX + map).
 
 ### Slice 4 — Engine: turn-aware stretch assembly
 
