@@ -106,6 +106,10 @@ class MinHeap {
 }
 
 /** Every node's coordinate, taken from the edge endpoints that define it. */
+export function nodeCoordinates(graph: RunGraph): Map<number, LatLon> {
+  return nodePoints(graph)
+}
+
 function nodePoints(graph: RunGraph): Map<number, LatLon> {
   const points = new Map<number, LatLon>()
   for (const edge of graph.edges) {
