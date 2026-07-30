@@ -1,6 +1,6 @@
 # v1.1: Door-to-Door Loops — Implementation Plan
 
-**Status:** proposed · **Owner:** unassigned
+**Status:** in progress · **Owner:** liam
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax — tick as you land each one and update this header when you claim or finish the plan (see `AGENTS.md`). **Do not start until the v1 stack (`docs/…-v1-github-pages-client-app.md`) has landed on `main`.**
 
