@@ -123,9 +123,15 @@ everything.
     turn-before-crossing order, which exists to dodge crossings that
     conversational sessions tolerate (observed at BS1 5AU: the turn order
     walked off the harbourside quay onto a 7 m fragment); (b) quality
-    (decision 16) for conversational stretches blends
-    quietness (0.45), gradient fit (0.20) and **length-fit** (0.35 — stretch
+    (decision 16) for conversational stretches blends quietness (0.45 — the
+    length-weighted **mean**, not the minimum: one louder link doesn't define
+    an easy run the way it breaks a rep), gradient fit (0.15, on a gentler
+    curve reaching zero at 10% — rolling ground is acceptable at
+    conversational effort, and the work flatness curve let terrain-tile noise
+    crush 2 km candidates at BS1 5AU) and **length-fit** (0.40 — stretch
     length over the capped target, clamped to 1), replacing crossing-freeness;
+    the hard gates (decision 16) are untouched and still use minimum
+    quietness;
     (c) a light length floor keeps degenerate fragments (the "0.0 km"
     courtyard loop) out of results entirely. Cap, floor and weights are
     tunable v1 constants in `engine/` alongside decision 16's. Distance-matched
