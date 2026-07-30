@@ -49,15 +49,15 @@ const line = [
 
 describe('findLoop', () => {
   it('returns a closed loop of roughly the target distance', () => {
-    const loop = findLoop(buildGraph(gridWays()), 100, 2000)
+    const loop = findLoop(buildGraph(gridWays()), 100, 3000)
     expect(loop).not.toBeNull()
     expect(loop!.points[0]).toEqual(loop!.points[loop!.points.length - 1])
-    expect(loop!.lengthMeters).toBeGreaterThan(1600)
-    expect(loop!.lengthMeters).toBeLessThan(2400)
+    expect(loop!.lengthMeters).toBeGreaterThan(2400)
+    expect(loop!.lengthMeters).toBeLessThan(3600)
   })
 
   it('comes back a different way when the network allows', () => {
-    const loop = findLoop(buildGraph(gridWays()), 100, 2000)
+    const loop = findLoop(buildGraph(gridWays()), 100, 3000)
     expect(loop!.overlapFraction).toBeLessThan(0.5)
   })
 
@@ -71,11 +71,11 @@ describe('findLoop', () => {
   })
 
   it('reports length-weighted mean quietness over the loop', () => {
-    const loop = findLoop(buildGraph(gridWays()), 100, 2000)
+    const loop = findLoop(buildGraph(gridWays()), 100, 3000)
     expect(loop!.meanQuietness).toBeCloseTo(0.7, 5) // all residential
   })
 
-  it('returns null when the graph cannot reach half the target', () => {
+  it('returns null when the graph cannot reach a meaningful share of the target', () => {
     const short = [way(1, [10, 20], [[51.45, -2.58], [51.4505, -2.58]])] // ~56m stub
     expect(findLoop(buildGraph(short), 10, 10000)).toBeNull()
   })

@@ -55,11 +55,11 @@ describe('loopSearchRadiusMeters', () => {
 describe('planLoop', () => {
   it('returns a door-to-door loop of roughly the session distance', async () => {
     const deps = depsFor(gridWays())
-    const result = await planLoop({ type: 'easy', distanceMeters: 2000 }, door, deps)
-    expect(result.loop.lengthMeters).toBeGreaterThan(1600)
-    expect(result.loop.lengthMeters).toBeLessThan(2400)
+    const result = await planLoop({ type: 'easy', distanceMeters: 3000 }, door, deps)
+    expect(result.loop.lengthMeters).toBeGreaterThan(2400)
+    expect(result.loop.lengthMeters).toBeLessThan(3600)
     expect(result.loop.points[0]).toEqual(result.loop.points[result.loop.points.length - 1])
-    expect(result.targetMeters).toBe(2000)
+    expect(result.targetMeters).toBe(3000)
   })
 
   it('fetches ways with the distance-scaled radius', async () => {
