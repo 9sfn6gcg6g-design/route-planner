@@ -80,7 +80,9 @@ everything.
     of failing outright. Applies to all work-stretch finding (tempo,
     intervals, hills). The precise junction geometry — how left/right/straight
     are decided, and which highway classes count as a "major" crossing — is
-    fixed in the implementing plan, not here.
+    fixed in the implementing plan, not here. *(Scoped 2026-07-30 by decision
+    17: the crossing cost applies to work stretches only; conversational
+    easy/long sessions annotate crossings without ranking penalty.)*
 16. **A segment has one quality score, 0–1, shown as a percentage
     (2026-07-30).** The finder ranks candidate work segments, and the UI
     presents them, by a single calibrated **quality** score — a weighted blend
@@ -100,7 +102,30 @@ everything.
     roads", shown alongside the score) are unchanged. The blend weights are v1
     constants in `engine/evaluate.ts`, tunable, and are the natural home for
     future signals (decision 7) — a new signal slots in as another weighted
-    dimension without reshaping the interface.
+    dimension without reshaping the interface. *(Amended 2026-07-30 by
+    decision 17: these weights are the work-stretch blend; conversational
+    sessions swap crossing-freeness for length-fit.)*
+17. **Conversational sessions rank without crossing cost (2026-07-30).** Scopes
+    decisions 15/16. Their crossing economics price a crossing as a *forced
+    stop* — a pace cost, which is a work concept; decision 15 already scoped
+    itself to work-stretch finding (tempo, intervals, hills). `easy`/`long`
+    are **conversational** (decision 13): there is no target pace for a kerb
+    pause to break, so for these sessions crossings carry **no ranking
+    penalty**. They remain *annotated* (decision 15's "crosses N roads"
+    caveat) as information, never as score. A conversational session's ground
+    need is **distance, not uninterrupted length** — `minUninterruptedMeters:
+    null` in `TerrainRequirements` is the marker (null now *means*
+    conversational, not merely "no floor"). Engine consequences: (a) stretch
+    assembly extends conversational stretches toward the session's work-phase
+    distance, capped by realistic search reach, instead of not extending at
+    all; (b) quality (decision 16) for conversational stretches blends
+    quietness (0.45), gradient fit (0.20) and **length-fit** (0.35 — stretch
+    length over the capped target, clamped to 1), replacing crossing-freeness;
+    (c) a light length floor keeps degenerate fragments (the "0.0 km"
+    courtyard loop) out of results entirely. Cap, floor and weights are
+    tunable v1 constants in `engine/` alongside decision 16's. Distance-matched
+    door-to-door loops remain the v1.1 assembly plan's job; this makes v1's
+    ranked stretches honest for conversational sessions until it lands.
 
 ---
 
