@@ -49,13 +49,13 @@ no new runtime services, **no API keys**. Reuse `geo.ts`, `chains.ts`, `finder.t
 
 ## Slice A — Amend decision 6 (docs, own commit)
 
-- [ ] Amend `docs/domain.md` decision 6: connectors and loop assembly for the static
+- [x] Amend `docs/domain.md` decision 6: connectors and loop assembly for the static
       v1.x run on our **own `RunGraph` (keyless)**; Openrouteservice returns as an option
       only if/when a backend host exists. Land as its own commit.
 
 ## Slice B — Keyless connector routing on the graph
 
-- [ ] `src/lib/engine/route.ts` (+ tests): shortest/quiet path between two graph nodes
+- [x] `src/lib/engine/route.ts` (+ tests): shortest/quiet path between two graph nodes
       (Dijkstra/A* over `RunEdge` weights, favouring quietness). Pure; fixtures, no
       network. Snap an arbitrary `LatLon` (the door, a stretch end) to the nearest graph
       node.
