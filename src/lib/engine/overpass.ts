@@ -1,15 +1,16 @@
 import type { LatLon, OsmWay } from './types'
 
 /**
- * Public Overpass instances, tried in order — the first is primary, the rest
- * are fallbacks. The public API is frequently overloaded (504) or bot-filtered
- * (406/429) under heavy queries, so relying on a single instance makes route
- * finding unreliable; fetchWays fails over between these.
+ * Public Overpass instances, tried in order. These MUST send CORS headers
+ * (`Access-Control-Allow-Origin`) or the browser can't use them. The main
+ * `overpass-api.de` instance is frequently overloaded (504) or throttled
+ * (406/429), so `openstreetmap.fr` — which currently answers reliably with CORS
+ * — leads, with `overpass-api.de` as the fallback. (`kumi.systems` was dropped:
+ * unreachable / no CORS from the browser.)
  */
 export const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.openstreetmap.fr/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
 ]
 
 const RUNNABLE_HIGHWAYS = [
