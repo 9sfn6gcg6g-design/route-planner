@@ -24,6 +24,27 @@ describe('buildGraph', () => {
     expect(graph.junctionNodeIds.size).toBe(0)
   })
 
+  it('severs a way at a blocking barrier so nothing routes through it (decision 20)', () => {
+    // node 20 is a kissing gate. Both sides stay reachable, but no edge may pass
+    // through 20 — the two sides must not share a node id.
+    const w = way(1, [10, 20, 30], [51.45, 51.451, 51.452])
+    const graph = buildGraph([w], new Set([20]))
+    expect(graph.edges).toHaveLength(2)
+    expect(graph.edges.some((e) => e.fromNodeId === 20 || e.toNodeId === 20)).toBe(false)
+    const [a, b] = graph.edges
+    expect(a.toNodeId).not.toBe(b.fromNodeId) // disconnected at the gate
+    const realEndpoints = graph.edges
+      .flatMap((e) => [e.fromNodeId, e.toNodeId])
+      .filter((n) => n > 0)
+    expect(realEndpoints).toContain(10)
+    expect(realEndpoints).toContain(30)
+    expect(graph.nodeDegree.get(20) ?? 0).toBe(0)
+  })
+
+  it('leaves the graph intact when no barriers are supplied', () => {
+    expect(buildGraph([way(1, [10, 20, 30], [51.45, 51.451, 51.452])]).edges).toHaveLength(1)
+  })
+
   it('splits two crossing ways at their shared node into four edges', () => {
     // way 1: 10 - 20 - 12 ; way 2: 30 - 20 - 32 (junction at 20)
     const a = way(1, [10, 20, 12], [51.45, 51.451, 51.452])

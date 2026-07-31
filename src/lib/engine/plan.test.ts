@@ -37,7 +37,7 @@ function fakeDeps(ways: OsmWay[]): { deps: RoutePlanDeps; recorded: Recorded } {
   const deps: RoutePlanDeps = {
     fetchWays: async (center, radiusMeters) => {
       recorded.waysCalls.push({ center, radius: radiusMeters })
-      return ways
+      return { ways, barrierNodeIds: new Set<number>() }
     },
     sampleElevations: flatSampler,
     fetchFootRoute: async (from, to) => {

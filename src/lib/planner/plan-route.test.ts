@@ -37,7 +37,7 @@ function depsFor(ways: OsmWay[], sampler: ElevationSampler = flatSampler): Recor
     calls,
     fetchWays: async (center, radiusMeters) => {
       calls.push({ center, radiusMeters })
-      return ways
+      return { ways, barrierNodeIds: new Set<number>() }
     },
     sampleElevations: sampler,
   }

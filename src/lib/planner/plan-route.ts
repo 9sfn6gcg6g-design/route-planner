@@ -8,7 +8,8 @@ import { compileSession } from '@/lib/domain/compiler'
 import { buildGraph } from '@/lib/engine/graph'
 import { findWorkSegments } from '@/lib/engine/finder'
 import type { ElevationSampler, WorkSegment } from '@/lib/engine/finder'
-import type { LatLon, OsmWay } from '@/lib/engine/types'
+import type { OverpassData } from '@/lib/engine/overpass'
+import type { LatLon } from '@/lib/engine/types'
 
 /**
  * Composition root for route generation: compile the session, then find the
@@ -18,8 +19,8 @@ import type { LatLon, OsmWay } from '@/lib/engine/types'
  * pass fakes and no network is hit.
  */
 export interface PlanRouteDeps {
-  /** Fetch runnable OSM ways within `radiusMeters` of `center`. */
-  fetchWays: (center: LatLon, radiusMeters: number) => Promise<OsmWay[]>
+  /** Fetch runnable OSM ways + blocking barrier nodes within `radiusMeters`. */
+  fetchWays: (center: LatLon, radiusMeters: number) => Promise<OverpassData>
   /** Sample ground elevation (meters) at each point, in order. */
   sampleElevations: ElevationSampler
 }
@@ -64,8 +65,8 @@ export async function planRoute(
   const plan = compileSession(session, compilerConfig)
   const requirements = workRequirements(plan)
 
-  const ways = await deps.fetchWays(start, searchRadiusMeters)
-  const graph = buildGraph(ways)
+  const { ways, barrierNodeIds } = await deps.fetchWays(start, searchRadiusMeters)
+  const graph = buildGraph(ways, barrierNodeIds)
   const segments = await findWorkSegments(graph, start, requirements, deps.sampleElevations, {
     maxDistanceFromStartMeters: searchRadiusMeters,
     maxResults,

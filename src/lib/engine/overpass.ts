@@ -29,15 +29,56 @@ const RUNNABLE_HIGHWAYS = [
   'trunk',
 ]
 
+/**
+ * Barrier values that force a runner to stop or dismount — a dead stop mid-run
+ * (decision 20). A barrier node with one of these tags severs the ground at that
+ * point unless an access tag says feet may pass. Kerbs, cattle grids and the
+ * like are runnable and deliberately absent.
+ */
+export const BLOCKING_BARRIERS = new Set([
+  'gate',
+  'stile',
+  'kissing_gate',
+  'turnstile',
+  'full-height_turnstile',
+  'cycle_barrier',
+  'sally_port',
+  'wicket_gate',
+])
+
+/** A blocking barrier is passable after all if an access tag admits feet. */
+function barrierAdmitsFoot(tags: Record<string, string>): boolean {
+  const open = new Set(['yes', 'designated', 'permissive'])
+  return open.has(tags.foot) || open.has(tags.access)
+}
+
 export function buildOverpassQuery(center: LatLon, radiusMeters: number): string {
   const filter = `^(${RUNNABLE_HIGHWAYS.join('|')})$`
   return [
     '[out:json][timeout:25];',
     '(',
     `  way(around:${radiusMeters},${center.lat},${center.lon})["highway"~"${filter}"];`,
+    `  node(around:${radiusMeters},${center.lat},${center.lon})["barrier"];`,
     ');',
     'out geom qt;',
   ].join('\n')
+}
+
+/**
+ * OSM node ids that block a runner (decision 20): barrier nodes whose tag is in
+ * `BLOCKING_BARRIERS` and whose access tags don't admit feet. `buildGraph` uses
+ * these to sever the ground so no stretch or loop routes through the gate.
+ */
+export function parseBarrierNodeIds(body: unknown): Set<number> {
+  const ids = new Set<number>()
+  if (typeof body !== 'object' || body === null) return ids
+  const elements = (body as { elements?: unknown }).elements
+  if (!Array.isArray(elements)) return ids
+  for (const el of elements as OverpassElement[]) {
+    if (el.type !== 'node' || !el.tags?.barrier) continue
+    if (BLOCKING_BARRIERS.has(el.tags.barrier) && !barrierAdmitsFoot(el.tags)) ids.add(el.id)
+  }
+  return ids
 }
 
 interface OverpassElement {
@@ -68,6 +109,12 @@ export function parseOverpassResponse(body: unknown): OsmWay[] {
     })
   }
   return ways
+}
+
+/** One Overpass fetch yields both the runnable ways and the blocking barriers. */
+export interface OverpassData {
+  ways: OsmWay[]
+  barrierNodeIds: Set<number>
 }
 
 export type FetchImpl = (url: string, init?: RequestInit) => Promise<Response>
@@ -109,7 +156,7 @@ export async function fetchWays(
   center: LatLon,
   radiusMeters: number,
   options: FetchWaysOptions = {},
-): Promise<OsmWay[]> {
+): Promise<OverpassData> {
   const {
     endpoints = OVERPASS_ENDPOINTS,
     retriesPerEndpoint = 2,
@@ -127,7 +174,10 @@ export async function fetchWays(
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ data }),
         })
-        if (response.ok) return parseOverpassResponse(await response.json())
+        if (response.ok) {
+          const body = await response.json()
+          return { ways: parseOverpassResponse(body), barrierNodeIds: parseBarrierNodeIds(body) }
+        }
         failures.push(`${endpoint} → ${response.status}`)
         if (!isTransientStatus(response.status)) break
       } catch (err) {
