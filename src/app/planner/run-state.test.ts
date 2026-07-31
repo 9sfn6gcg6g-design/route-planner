@@ -25,13 +25,14 @@ describe('runStateReducer', () => {
   it('records a successful search with its segments and radius', () => {
     const next = runStateReducer(
       { status: 'loading' },
-      { type: 'search-succeeded', session, start, segments: [segment], radiusMeters: 1200 },
+      { type: 'search-succeeded', session, start, segments: [segment], routes: [null], radiusMeters: 1200 },
     )
     expect(next).toEqual({
       status: 'done',
       session,
       start,
       segments: [segment],
+      routes: [null],
       radiusMeters: 1200,
     })
   })
@@ -48,6 +49,7 @@ describe('runStateReducer', () => {
       session,
       start,
       segments: [segment],
+      routes: [null],
       radiusMeters: 1200,
     }
     expect(runStateReducer(done, { type: 'reset' })).toEqual(IDLE)
@@ -59,6 +61,7 @@ describe('runStateReducer', () => {
       session,
       start,
       segments: [segment],
+      routes: [null],
       radiusMeters: 1200,
     }
     expect(runStateReducer(done, { type: 'search-started' })).toEqual(

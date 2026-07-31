@@ -41,6 +41,7 @@ export function useRouteSearch(deps: PlanRouteDeps): RouteSearch {
           session,
           start,
           segments: plan.segments,
+          routes: plan.routes,
           radiusMeters,
         })
       } catch {

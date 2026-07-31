@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import type { Session } from '@/lib/domain/types'
-import type { WorkSegment } from '@/lib/engine/finder'
+import type { LatLon } from '@/lib/engine/types'
 import {
   buildGpxDownload,
   crossingCaveat,
@@ -28,8 +28,8 @@ const RouteMap = dynamic(() => import('../route-map'), {
 })
 
 /** Build the GPX (pure) and trigger a browser download of it. */
-function downloadGpx(session: Session, segment: WorkSegment) {
-  const { fileName, mimeType, contents } = buildGpxDownload(session, segment.points)
+function downloadGpx(session: Session, points: LatLon[]) {
+  const { fileName, mimeType, contents } = buildGpxDownload(session, points)
   const blob = new Blob([contents], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -60,7 +60,7 @@ export function Results({
     return <p className="text-sm text-red-700 dark:text-red-400">{run.message}</p>
   }
 
-  const { session, start, segments } = run
+  const { session, start, segments, routes } = run
   if (segments.length === 0) {
     return (
       <div className="flex flex-col gap-3 border-l-2 border-accent bg-paper-warm px-4 py-4">
@@ -84,6 +84,9 @@ export function Results({
 
   const index = Math.min(selected, segments.length - 1)
   const current = segments[index]
+  const loop = routes[index] ?? null
+  // The full door-to-door loop when we could assemble one, else the bare stretch.
+  const drawn = loop ? loop.points : current.points
   const count = segments.length
   const pace = sessionTargetPace(session)
 
@@ -92,7 +95,7 @@ export function Results({
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-rule pb-2">
         <span className="font-mono text-[0.7rem] tracking-[0.2em] text-accent-ink">03</span>
         <h2 className="font-serif text-lg font-normal tracking-tight">
-          {count} {count > 1 ? 'stretches' : 'stretch'}
+          {count} {count > 1 ? 'routes' : 'route'}
         </h2>
         <span className="ml-auto font-mono text-[0.7rem] tracking-wide text-ink-faint">
           for {sessionSummary(session)}
@@ -100,7 +103,13 @@ export function Results({
         </span>
       </div>
 
-      <RouteMap start={start} route={current.points} />
+      <RouteMap start={start} route={drawn} />
+
+      {loop && (
+        <p className="font-mono text-[0.7rem] tracking-wide text-ink-soft">
+          Loop from your door · {formatKm(loop.totalMeters)} total
+        </p>
+      )}
 
       <ul className="flex flex-col">
         {segments.map((segment, i) => {
@@ -141,15 +150,16 @@ export function Results({
 
       <button
         type="button"
-        onClick={() => downloadGpx(session, current)}
+        onClick={() => downloadGpx(session, drawn)}
         className="self-start rounded-sm border border-ink px-6 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink transition hover:bg-ink hover:text-paper"
       >
         Download GPX
       </button>
       <p className="font-mono text-[0.7rem] leading-relaxed tracking-wide text-ink-faint">
-        Map data © OpenStreetMap contributors. This is the session&rsquo;s work stretch — the ground
-        that suits the session, not yet a full loop from your door. Connecting it into a door-to-door
-        route comes next (v1.1).
+        Map data © OpenStreetMap contributors.{' '}
+        {loop
+          ? 'A full loop from your door — warmup out, the work, and back — assembled on your device.'
+          : 'Showing the session’s work stretch; we couldn’t connect it back to your door here.'}
       </p>
     </section>
   )
