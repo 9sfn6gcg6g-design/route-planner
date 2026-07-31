@@ -184,7 +184,7 @@ everything.
     — the `back`-U-turn avoidance does not apply within the hill lap. Whether
     **tempo** stays out-and-back (decision 11) or becomes a loop is **resolved in
     the implementing plan**, not here. This promotes the existing
-    `docs/superpowers/plans/2026-07-29-v1-1-door-to-door-loops.md`, which already
+    `docs/superpowers/plans/2026-07-29-v1-door-to-door-loops.md`, which already
     chose this keyless-graph architecture.
 
 ---
