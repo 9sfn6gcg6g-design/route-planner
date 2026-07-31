@@ -90,18 +90,23 @@ dependencies. No network in tests.
 ## Tasks
 
 ### Slice 1 — Componentise the app layer (PR)
-- [ ] Create `src/app/planner/index.tsx` shell; move `Planner` there. Update
-      `src/app/page.tsx` import (`./planner` → `./planner`, now a folder).
-- [ ] Extract `fields.tsx` (`Field`, `SectionHead`, `kickerClass`/`inputClass`,
+- [x] Create `src/app/planner/index.tsx` shell; move `Planner` there.
+      `src/app/page.tsx` import unchanged (`./planner` now resolves to the folder).
+- [x] Extract `fields.tsx` (`Field`, `SectionHead`, `kickerClass`/`inputClass`,
       `PaceField`, `SearchProgress`) — presentational, no logic.
-- [ ] Extract `session-form.tsx` (type buttons + per-type field blocks); it
+- [x] Extract `session-form.tsx` (type buttons + per-type field blocks); it
       owns `SessionFormValues` state and calls `parseSessionForm` on submit,
-      raising the parsed `Session` (or field errors) to the shell.
-- [ ] Extract `start-point.tsx` (geolocate + postcode lookup); raises the
-      resolved `LatLon` + status string.
-- [ ] Extract `results.tsx` (segment list, quality/caveat display, map, GPX
-      button); pure props in, `onSelect`/`onWiden`/`onDownload` callbacks out.
-- [ ] Verify no visual/behaviour diff by hand (`npm run dev`); lint/typecheck/test green.
+      raising the parsed `Session` (or field errors) to the shell. Renders the
+      start section via a `startSlot` prop so a single `<form>` and the DOM are
+      preserved.
+- [x] Extract `start-point.tsx` (geolocate + postcode lookup); raises the
+      resolved `LatLon` (or `null` on failure) via `onStartChange`.
+- [x] Extract `results.tsx` (segment list, quality/caveat display, map, GPX
+      button); run/selected props in, `onSelect`/`onWiden` callbacks out.
+- [x] Verified: DOM-preserving extraction (single `<form>`, byte-for-byte JSX),
+      `npm run lint`/`typecheck`/`test` (226) green + `next build` prerenders.
+      No manual dev eyeball — repo has no UI test infra, so behaviour parity
+      rests on the mechanical extraction + build.
 
 ### Slice 2 — Push logic into tested `.ts` modules (PR)
 - [ ] `src/app/planner/run-state.ts`: pure run-state type + reducer; add
