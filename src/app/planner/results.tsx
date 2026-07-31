@@ -3,15 +3,15 @@
 import dynamic from 'next/dynamic'
 import type { Session } from '@/lib/domain/types'
 import type { WorkSegment } from '@/lib/engine/finder'
-import { buildGpxTrack } from '@/lib/export/gpx'
 import {
   crossingCaveat,
   formatKm,
   formatPace,
   formatQuality,
-  gpxFileName,
   sessionSummary,
+  sessionTargetPace,
 } from '@/lib/results/format'
+import { buildGpxDownload } from '@/lib/results/gpx-download'
 import { SearchProgress } from './fields'
 import type { RunState } from './run-state'
 
@@ -27,24 +27,14 @@ const RouteMap = dynamic(() => import('../route-map'), {
   loading: () => <div className="h-80 w-full rounded-sm bg-paper-warm" />,
 })
 
-/** Target pace in seconds/km for structured sessions; null for easy/long or when omitted (decision 17). */
-function sessionPace(session: Session): number | null {
-  return session.type === 'easy' || session.type === 'long'
-    ? null
-    : session.targetPaceSecondsPerKm ?? null
-}
-
+/** Build the GPX (pure) and trigger a browser download of it. */
 function downloadGpx(session: Session, segment: WorkSegment) {
-  const pace = sessionPace(session)
-  const gpx = buildGpxTrack(segment.points, {
-    name: sessionSummary(session),
-    description: pace !== null ? `Target pace ${formatPace(pace)}` : undefined,
-  })
-  const blob = new Blob([gpx], { type: 'application/gpx+xml' })
+  const { fileName, mimeType, contents } = buildGpxDownload(session, segment.points)
+  const blob = new Blob([contents], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = gpxFileName(session)
+  anchor.download = fileName
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
@@ -95,7 +85,7 @@ export function Results({
   const index = Math.min(selected, segments.length - 1)
   const current = segments[index]
   const count = segments.length
-  const pace = sessionPace(session)
+  const pace = sessionTargetPace(session)
 
   return (
     <section className="flex flex-col gap-5">
