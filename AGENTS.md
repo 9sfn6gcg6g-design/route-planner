@@ -68,6 +68,10 @@ src/app/          ← Next.js routes and UI.
 - New quality inputs arrive as **signals** (decision 7) and must slot into the
   scorer without rewriting it. If a change forces a scorer rewrite, stop and
   raise it rather than reshaping the interface unilaterally.
+- Each of the app's four pillars (user input, routing, quality, visual output)
+  has one **public seam** — a barrel `index.ts` (or named module). Import
+  through the seam, not at deep paths. `docs/pillars.md` maps pillar → home →
+  seam → "to change X, edit Y".
 
 ## Tests
 

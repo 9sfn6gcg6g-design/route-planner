@@ -1,6 +1,6 @@
 # Foundations — Four Pillars & UI Componentisation — Implementation Plan
 
-**Status:** in progress · **Owner:** stuurps
+**Status:** complete (landed via slices 1–3) · **Owner:** stuurps
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax — tick as you land each one and update this header when you claim or finish the plan (see `AGENTS.md`).
 
@@ -124,9 +124,11 @@ dependencies. No network in tests.
       /test (244) green + `next build` prerenders.
 
 ### Slice 3 — Pillar seams + architecture note (PR)
-- [ ] Add pillar barrels: `session-input/index.ts`, `planner/index.ts`,
+- [x] Added pillar barrels: `session-input/index.ts`, `planner/index.ts`,
       `engine/quality.ts`, `results/index.ts` (re-export only; no new
-      cross-layer imports). Point app imports at the barrels.
-- [ ] Write `docs/pillars.md`: the pillar→home→seam→"to change X, edit Y" map
-      (mirror the table above, kept current). Cross-link from `AGENTS.md`.
-- [ ] Tick this plan complete; lint/typecheck/test green.
+      cross-layer imports), each with a seam smoke test. App imports repointed
+      at the barrels.
+- [x] Wrote `docs/pillars.md`: the pillar→home→seam→"to change X, edit Y" map.
+      Cross-linked from `AGENTS.md` (Layering section).
+- [x] Plan marked complete; lint/typecheck/test (248) green + `next build`
+      prerenders.

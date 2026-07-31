@@ -3,7 +3,7 @@
 import { useCallback, useReducer, useState } from 'react'
 import type { Session } from '@/lib/domain/types'
 import type { LatLon } from '@/lib/engine/types'
-import { planRoute, type PlanRouteDeps } from '@/lib/planner/plan-route'
+import { planRoute, type PlanRouteDeps } from '@/lib/planner'
 import { IDLE, runStateReducer, type RunState } from './run-state'
 
 /**
