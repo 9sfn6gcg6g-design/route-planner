@@ -27,9 +27,16 @@ scored `RunGraph` around the start (`engine/graph.ts`). Connectors and loops are
 **client-side with no API key**, not via Openrouteservice. **Decision 21 records
 this** (superseding decision 6's ORS connectors and amending decision 12 to bring
 door-to-door into v1); the doc change has landed, so no doc slice remains here.
-`connectors.ts` (the ORS client) is **retired**. Connectors carry
-`requirements: null` (any runnable terrain — the `Phase` model), so the graph is
-the right substrate.
+
+**This is a rework, not a green field.** Route assembly already exists in the
+engine but is **ORS-coupled**: `engine/plan.ts` (`generateRoute`) is the front
+door — easy/long call `fetchRoundTrip` (ORS), tempo/intervals/hills lap a work
+segment and connect it with `fetchFootRoute` (ORS) — over the pure helpers in
+`engine/assemble.ts` (`buildWorkGeometry`, `assembleRoute`, `assembleLoopRoute`,
+`rotateRingToNearest`). The pure helpers **stay**; the ORS **source** is swapped
+for graph routing, and `connectors.ts` (the ORS client) is **retired**. Connectors
+carry `requirements: null` (any runnable terrain — the `Phase` model), so the graph
+is the right substrate.
 
 **Tech Stack:** TypeScript, Next.js 16 static export, Vitest. New engine routing
 code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
@@ -52,7 +59,11 @@ code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
       (Dijkstra/A* over `RunEdge` weights, favouring quietness). Pure; fixtures, no
       network. Snap an arbitrary `LatLon` (the door, a stretch end) to the nearest
       graph node.
-- [ ] Retire `engine/connectors.ts` (ORS) and its wiring; nothing keyed remains.
+- [ ] Rewire `engine/plan.ts` `generateRoute`: replace the `fetchFootRoute`
+      (warmup/cooldown) connector calls with `route.ts` over the graph it already
+      builds; keep the `assemble.ts` helpers. Retire `engine/connectors.ts` (ORS)
+      and the `RoutePlanDeps` fields that inject it — nothing keyed remains. The
+      conformance plan's keyless guard flips to a hard assertion in this PR.
 
 ## Slice B — Lap-session loops (intervals / hills)
 
@@ -68,10 +79,12 @@ code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
 
 ## Slice C — Distance-correct continuous loops (easy / long / tempo)
 
-- [ ] Generate a loop of ~target distance (± tolerance) from quiet ground for
-      easy/long, so an 8 km ask yields an ~8 km loop. Likely a new finder mode
-      (quiet-loop search on the graph) rather than the single-stretch finder. If it
-      forces a scorer/interface change, **stop and raise it** (AGENTS.md).
+- [ ] Replace the ORS `fetchRoundTrip` easy/long branch in `generateRoute` with a
+      **quiet-loop search on the graph** — a loop of ~target distance (± tolerance)
+      from quiet ground, so an 8 km ask yields an ~8 km signal-shaped loop (closes
+      the decision-1 violation the round trip left open). Likely a new finder mode
+      rather than the single-stretch finder. If it forces a scorer/interface change,
+      **stop and raise it** (AGENTS.md).
 - [ ] Revisit `terrainRequirementsFor` for continuous types now distance is honoured
       by assembly (the `minUninterruptedMeters: null` gap).
 - [ ] **Resolve the tempo shape (decision 11 vs 21, deferred to this plan):** does
