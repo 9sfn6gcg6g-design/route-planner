@@ -1,6 +1,6 @@
 # Routing: Flow Family & Ground Refinements — Implementation Plan
 
-**Status:** proposed · **Owner:** unassigned
+**Status:** in progress · **Owner:** stuurps
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax — tick as you land each one and update this header when you claim or finish the plan (see `AGENTS.md`).
 
@@ -50,73 +50,73 @@ weighted terms (decision 7).
 
 ## Slice A — Session-weighted quality profile
 
-- [ ] `domain/types.ts`: add `qualityWeights` to `TerrainRequirements` — a profile
+- [x] `domain/types.ts`: add `qualityWeights` to `TerrainRequirements` — a profile
       `{ quietness, gradient, crossingFree, turnSmoothness, turnDensity,
       nonRepetition }`, all ≥ 0, summing to 1.
-- [ ] `domain/profiles.ts`: set `qualityWeights` per session in
+- [x] `domain/profiles.ts`: set `qualityWeights` per session in
       `terrainRequirementsFor` — structured (tempo/intervals/hills) weight
       crossingFree + turnSmoothness/density high and nonRepetition ~0 (laps repeat
       by design, decision 21); easy/long weight those low and nonRepetition high.
       Constants, tunable.
-- [ ] `engine/evaluate.ts`: `segmentQuality` takes the `qualityWeights` profile and
+- [x] `engine/evaluate.ts`: `segmentQuality` takes the `qualityWeights` profile and
       the new inputs (`turnSmoothness`, `turnDensity`, `nonRepetition`); drop the
       module-const `QUALITY_WEIGHTS`. Until later slices/loops feed real values,
       pass `turnSmoothness = 1`, `turnDensity = 1`, `nonRepetition = 1` (a single
       stretch repeats nothing) so behaviour is unchanged.
-- [ ] `engine/finder.ts`: read `requirements.qualityWeights`; thread it + the new
+- [x] `engine/finder.ts`: read `requirements.qualityWeights`; thread it + the new
       inputs into `segmentQuality`.
-- [ ] Tests: profile ordering (a crossing costs a rep session more than an easy
+- [x] Tests: profile ordering (a crossing costs a rep session more than an easy
       run); weights sum to 1 for every session; quality stays in [0, 1].
 
 ## Slice B — Turn-smoothness (assembly + score)
 
-- [ ] `engine/geo.ts`: `turnSmoothness(signedTurnDegrees)` → 0–1 (1 up to a gentle
+- [x] `engine/geo.ts`: `turnSmoothness(signedTurnDegrees)` → 0–1 (1 up to a gentle
       threshold, decaying to 0 by the hairpin bound). Thresholds are tunable
       constants.
-- [ ] `engine/stretches.ts`: replace `CLASS_RANK` (left→right→straight) with
+- [x] `engine/stretches.ts`: replace `CLASS_RANK` (left→right→straight) with
       **gentlest non-crossing continuation first** (decision 18): non-crossing
       turns before a straight-across crossing; among turns, gentler wins;
       left-before-right only as a tiebreak at comparable sharpness; then quietness;
       then `corridorKey`. Carry the turns taken on `Stretch` (angles or per-hop
       classes) so the finder can score them.
-- [ ] `engine/finder.ts` / `evaluate.ts`: derive the stretch's `turnSmoothness`
+- [x] `engine/finder.ts` / `evaluate.ts`: derive the stretch's `turnSmoothness`
       sub-score from its turns; feed `segmentQuality`.
-- [ ] Tests: gentle-turn stretch outranks an equal one with a hairpin; assembly
+- [x] Tests: gentle-turn stretch outranks an equal one with a hairpin; assembly
       still prefers a turn over a crossing; left-before-right tiebreak holds.
 
 ## Slice C — Turn-density
 
-- [ ] Compute **turns per km taken** (real direction changes from Slice B's turn
+- [x] Compute **turns per km taken** (real direction changes from Slice B's turn
       data, not `maxJunctionsPerKm`'s minor joins) → 0–1 `turnDensity` sub-score
       (fewer turns = higher). Feed `segmentQuality`.
-- [ ] Tests: a straight stretch beats a zig-zag of equal length/quietness for
+- [x] Tests: a straight stretch beats a zig-zag of equal length/quietness for
       structured profiles; easy/long barely care.
 
 ## Slice D — Gradient shape (decision 19)
 
-- [ ] `engine/elevation.ts`: add shape measures alongside `avgAbsGradientPercent` —
+- [x] `engine/elevation.ts`: add shape measures alongside `avgAbsGradientPercent` —
       a **sustained-climb** measure (longest continuous rise vs rep length, for
       hills) and a **gradient-variance** measure (for tempo). Pure; fixtures.
-- [ ] Signal which mode a session wants without leaking pace: extend the gradient
+- [x] Signal which mode a session wants without leaking pace: extend the gradient
       side of `TerrainRequirements` (e.g. a `gradientShape: 'sustained' |
       'even' | 'any'`) set in `profiles.ts` — hills `sustained`, tempo `even`,
       easy/long `any`.
-- [ ] `engine/evaluate.ts`: `gradientFit` reads the shape mode so a rolling stretch
+- [x] `engine/evaluate.ts`: `gradientFit` reads the shape mode so a rolling stretch
       that averages to target scores worse for hills/tempo. Keep easy/long on the
       average.
-- [ ] Tests: rolling-but-on-average stretch loses to a steady one for hills and
+- [x] Tests: rolling-but-on-average stretch loses to a steady one for hills and
       tempo; unchanged for easy/long.
 
 ## Slice E — Obstacle gate: node barriers (decision 20)
 
-- [ ] `engine/overpass.ts`: additionally fetch `node["barrier"]` within the radius
+- [x] `engine/overpass.ts`: additionally fetch `node["barrier"]` within the radius
       (`gate`, `stile`, `kissing_gate`, `turnstile`, …). Keep `steps` excluded
       (already not a runnable highway).
-- [ ] `engine/types.ts` / `graph.ts`: record barrier nodes; an edge passing through
+- [x] `engine/types.ts` / `graph.ts`: record barrier nodes; an edge passing through
       a **blocking** barrier node is not runnable (respect obvious access-tag
       exceptions, e.g. `foot=yes` / `access=yes`). Barrier list + exceptions are
       constants.
-- [ ] Tests: a way threaded through a gate node is not traversable; a barrier with
+- [x] Tests: a way threaded through a gate node is not traversable; a barrier with
       `foot=yes` still is; non-barrier graphs are unchanged.
 
 ## Open questions / hand-offs
