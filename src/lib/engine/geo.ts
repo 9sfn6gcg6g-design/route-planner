@@ -83,3 +83,45 @@ export function classifyTurn(
   if (magnitude >= backMin) return 'back'
   return turn < 0 ? 'left' : 'right'
 }
+
+/** Turns gentler than this cost no pace and don't count as navigational turns. */
+export const GENTLE_TURN_DEGREES = 30
+/** Turns this sharp (a hairpin) score zero smoothness. */
+export const SHARP_TURN_DEGREES = 135
+/** Navigational turns per km at which the turn-density score decays to zero. */
+export const TURN_DENSITY_ZERO_PER_KM = 8
+
+/**
+ * 0–1 smoothness of a single turn by its magnitude (decision 18): a gentle
+ * sweep costs no pace (1), a hairpin costs the most (0), linear between the
+ * gentle and sharp bounds. Sign is irrelevant — a left and right of equal
+ * magnitude are equally smooth.
+ */
+export function turnSmoothness(signedTurnDegrees: number): number {
+  const magnitude = Math.abs(signedTurnDegrees)
+  if (magnitude <= GENTLE_TURN_DEGREES) return 1
+  if (magnitude >= SHARP_TURN_DEGREES) return 0
+  return 1 - (magnitude - GENTLE_TURN_DEGREES) / (SHARP_TURN_DEGREES - GENTLE_TURN_DEGREES)
+}
+
+/**
+ * Aggregate the turns a stretch takes (decision 18) into two 0–1 flow
+ * sub-scores: `turnSmoothness` is the mean per-turn smoothness (1 when it takes
+ * no turns), so one hairpin drags a stretch down; `turnDensity` is 1 for a
+ * legible line and decays with the number of *navigational* turns per km (gentle
+ * sweeps below the threshold don't count), reaching 0 at
+ * `TURN_DENSITY_ZERO_PER_KM`. Both feed the quality blend, weighted per session.
+ */
+export function turnFlowScores(
+  turnAngles: number[],
+  lengthMeters: number,
+): { turnSmoothness: number; turnDensity: number } {
+  const smoothness =
+    turnAngles.length === 0
+      ? 1
+      : turnAngles.reduce((sum, a) => sum + turnSmoothness(a), 0) / turnAngles.length
+  const navigational = turnAngles.filter((a) => Math.abs(a) > GENTLE_TURN_DEGREES).length
+  const perKm = lengthMeters > 0 ? navigational / (lengthMeters / 1000) : 0
+  const turnDensity = Math.max(0, 1 - perKm / TURN_DENSITY_ZERO_PER_KM)
+  return { turnSmoothness: smoothness, turnDensity }
+}

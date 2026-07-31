@@ -1,7 +1,7 @@
 import type { Chain, LatLon, RunEdge, RunGraph } from './types'
 import { buildChains } from './chains'
 import { chainMinQuietness } from './evaluate'
-import { bearingDegrees, classifyTurn, type TurnClass } from './geo'
+import { bearingDegrees, classifyTurn, signedTurnDegrees } from './geo'
 
 /**
  * A work stretch assembled from corridor chains (decision 15). Where a plain
@@ -15,6 +15,10 @@ export interface Stretch {
   /** Straight-across junctions traversed while assembling: the forced road
    *  crossings the runner would face. Turns contribute nothing. */
   crossings: number
+  /** Signed heading change taken at each junction the assembly extended through
+   *  (decision 18), for scoring turn-smoothness and turn-density. Empty when the
+   *  corridor was returned unextended. */
+  turnAngles: number[]
 }
 
 export interface AssembleOptions {
@@ -25,8 +29,8 @@ export interface AssembleOptions {
   maxHops?: number
 }
 
-/** Continuation preference: a left turn beats a right, a right beats straight. */
-const CLASS_RANK: Record<TurnClass, number> = { left: 0, right: 1, straight: 2, back: 3 }
+/** Sort key for the left-before-right tiebreak: left (anticlockwise) sorts first. */
+const turnSide = (signed: number): number => (signed < 0 ? 0 : 1)
 
 const firstBearing = (points: LatLon[]): number => bearingDegrees(points[0], points[1])
 const lastBearing = (points: LatLon[]): number =>
@@ -77,7 +81,7 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
   const stretches: Stretch[] = []
   for (const seed of corridors) {
     if (seed.isCycle) {
-      stretches.push({ chain: seed, crossings: 0 })
+      stretches.push({ chain: seed, crossings: 0, turnAngles: [] })
       continue
     }
 
@@ -89,30 +93,42 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
     let node = seed.endNodeId
     let arrivalBearing = lastBearing(seed.points)
     let crossings = 0
+    const turnAngles: number[] = []
 
     for (let hop = 0; lengthMeters < targetMeters && hop < maxHops; hop++) {
       const candidates = (incidence.get(node) ?? [])
         .filter((chain) => !visited.has(chain))
         .map((chain) => {
           const oriented = orientedFromNode(chain, node)
+          const departure = firstBearing(oriented.points)
+          const turn = classifyTurn(arrivalBearing, departure)
           return {
             chain,
             oriented,
-            turn: classifyTurn(arrivalBearing, firstBearing(oriented.points)),
+            signed: signedTurnDegrees(arrivalBearing, departure),
+            isCrossing: turn === 'straight',
+            isBack: turn === 'back',
             quietness: chainMinQuietness(chain),
           }
         })
-        .filter((candidate) => candidate.turn !== 'back')
+        .filter((candidate) => !candidate.isBack)
       if (candidates.length === 0) break
 
+      // Decision 18: prefer the gentlest non-crossing continuation. Turns beat a
+      // straight-across crossing; among turns the gentler wins; left-before-right
+      // only breaks a tie between equally sharp turns (nearside without crossing
+      // the carriageway). Quietness then corridorKey keep it deterministic.
       candidates.sort(
         (a, b) =>
-          CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
+          Number(a.isCrossing) - Number(b.isCrossing) ||
+          Math.abs(a.signed) - Math.abs(b.signed) ||
+          turnSide(a.signed) - turnSide(b.signed) ||
           b.quietness - a.quietness ||
           corridorKey(a.chain).localeCompare(corridorKey(b.chain)),
       )
       const chosen = candidates[0]
-      if (chosen.turn === 'straight') crossings++
+      if (chosen.isCrossing) crossings++
+      turnAngles.push(chosen.signed)
 
       points.push(...chosen.oriented.points.slice(1))
       edges.push(...chosen.oriented.edges)
@@ -134,6 +150,7 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
         toleratedJunctionNodeIds: tolerated,
       },
       crossings,
+      turnAngles,
     })
   }
 
