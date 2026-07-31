@@ -2,7 +2,7 @@ import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
 import { assembleStretches } from './stretches'
 import { evaluateChain, segmentQuality } from './evaluate'
-import { avgAbsGradientPercent } from './elevation'
+import { avgAbsGradientPercent, gradientConsistency } from './elevation'
 import { cumulativeMeters, haversineMeters, turnFlowScores } from './geo'
 import { resamplePoints } from './resample'
 
@@ -103,6 +103,7 @@ export async function findWorkSegments(
         crossings,
         weights: requirements.qualityWeights,
         gradientShape: requirements.gradientShape,
+        gradientConsistency: gradientConsistency(slice),
         turnSmoothness,
         turnDensity,
       })

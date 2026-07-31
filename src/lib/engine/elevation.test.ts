@@ -3,8 +3,30 @@ import {
   avgAbsGradientPercent,
   buildElevationUrl,
   chunk,
+  gradientConsistency,
   parseElevationResponse,
 } from './elevation'
+
+describe('gradientConsistency (decision 19)', () => {
+  it('a sustained climb is perfectly consistent', () => {
+    expect(gradientConsistency([0, 5, 10, 15, 20])).toBe(1)
+  })
+
+  it('flat ground is perfectly consistent', () => {
+    expect(gradientConsistency([10, 10, 10])).toBe(1)
+  })
+
+  it('a rolling profile that nets little is inconsistent', () => {
+    // up 10, down 10, up 10, down 10: net 0 over 40 of movement.
+    expect(gradientConsistency([0, 10, 0, 10, 0])).toBeLessThan(0.2)
+  })
+
+  it('a mostly-up profile with a dip sits between', () => {
+    const c = gradientConsistency([0, 10, 8, 18]) // net 18, total 22
+    expect(c).toBeGreaterThan(0.7)
+    expect(c).toBeLessThan(1)
+  })
+})
 
 describe('chunk', () => {
   it('splits into batches of the given size with a smaller tail', () => {
