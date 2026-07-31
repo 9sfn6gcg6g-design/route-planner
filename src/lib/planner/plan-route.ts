@@ -1,5 +1,6 @@
 import type {
   CompilerConfig,
+  PhasePlan,
   Session,
   SessionPlan,
   TerrainRequirements,
@@ -8,8 +9,10 @@ import { compileSession } from '@/lib/domain/compiler'
 import { buildGraph } from '@/lib/engine/graph'
 import { findWorkSegments } from '@/lib/engine/finder'
 import type { ElevationSampler, WorkSegment } from '@/lib/engine/finder'
+import type { AssembledRoute } from '@/lib/engine/assemble'
 import type { OverpassData } from '@/lib/engine/overpass'
 import type { LatLon } from '@/lib/engine/types'
+import { assembleDoorToDoorLoop } from './assemble-loop'
 
 /**
  * Composition root for route generation: compile the session, then find the
@@ -43,15 +46,19 @@ export interface RoutePlan {
   requirements: TerrainRequirements
   /** Ranked work segments matching those demands, best first. */
   segments: WorkSegment[]
+  /** Door-to-door loop per ranked segment (decision 21), same order as
+   *  `segments`; an entry is null when its ends can't be reached on the graph,
+   *  so the UI falls back to the bare stretch. */
+  routes: Array<AssembledRoute | null>
 }
 
 /** The work phase always carries non-null requirements; guard defensively. */
-function workRequirements(plan: SessionPlan): TerrainRequirements {
+function workPhase(plan: SessionPlan): PhasePlan & { requirements: TerrainRequirements } {
   const work = plan.phases.find((phase) => phase.kind === 'work')
   if (!work || work.requirements === null) {
     throw new Error('compiled plan has no work phase with requirements')
   }
-  return work.requirements
+  return { ...work, requirements: work.requirements }
 }
 
 export async function planRoute(
@@ -63,7 +70,8 @@ export async function planRoute(
   const { searchRadiusMeters = 1200, maxResults, compilerConfig } = options
 
   const plan = compileSession(session, compilerConfig)
-  const requirements = workRequirements(plan)
+  const work = workPhase(plan)
+  const requirements = work.requirements
 
   const { ways, barrierNodeIds } = await deps.fetchWays(start, searchRadiusMeters)
   const graph = buildGraph(ways, barrierNodeIds)
@@ -72,5 +80,17 @@ export async function planRoute(
     maxResults,
   })
 
-  return { plan, requirements, segments }
+  // Turn each ranked stretch into a runnable door-to-door loop (decision 21):
+  // connectors are quiet paths over the same graph, so nothing leaves the
+  // browser. A stretch whose ends can't be reached stays a bare stretch (null).
+  const routes = segments.map((segment) =>
+    assembleDoorToDoorLoop(
+      graph,
+      start,
+      { points: segment.points, lengthMeters: segment.lengthMeters, isCycle: segment.isCycle },
+      work.targetMeters,
+    ),
+  )
+
+  return { plan, requirements, segments, routes }
 }

@@ -63,6 +63,20 @@ describe('planRoute', () => {
     expect(result.segments.length).toBeGreaterThan(0)
   })
 
+  it('returns a door-to-door loop per segment, each starting and ending at the door (decision 21)', async () => {
+    const deps = depsFor([straightWay(1, 51.45, -2.58, 12, 'residential', 'asphalt')])
+    const result = await planRoute(easy, start, deps)
+
+    expect(result.routes).toHaveLength(result.segments.length)
+    const loop = result.routes[0]
+    expect(loop).not.toBeNull()
+    const pts = loop!.points
+    expect(pts[0].lat).toBeCloseTo(start.lat, 4)
+    expect(pts[pts.length - 1].lat).toBeCloseTo(start.lat, 4)
+    // a real loop covers more ground than the bare stretch it is built around
+    expect(loop!.totalMeters).toBeGreaterThan(result.segments[0].lengthMeters)
+  })
+
   it('threads the work-phase requirements: intervals rejects a short stretch easy accepts', async () => {
     // ~444m residential: fine for easy (no minimum stretch), too short for a
     // 800m interval rep.
