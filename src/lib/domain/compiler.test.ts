@@ -124,7 +124,7 @@ describe('input validation', () => {
     ).toThrow(/reps/)
   })
 
-  it('throws when a structured session has a non-finite target pace (decision 13)', () => {
+  it('throws when a structured session has a present, non-finite target pace (decisions 13, 17)', () => {
     expect(() =>
       compileSession({
         type: 'tempo',
@@ -134,6 +134,13 @@ describe('input validation', () => {
         targetPaceSecondsPerKm: NaN,
       }),
     ).toThrow(/targetPaceSecondsPerKm/)
+  })
+
+  it('compiles a structured session with no target pace (optional, decision 17)', () => {
+    const plan = compileSession({ type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog' })
+    expect(plan.session).not.toHaveProperty('targetPaceSecondsPerKm')
+    expect(plan.workPattern).toBe('continuous')
+    expect(plan.phases.map((p) => p.kind)).toEqual(['warmup', 'work', 'cooldown'])
   })
 
   it('throws when distanceMeters is negative', () => {

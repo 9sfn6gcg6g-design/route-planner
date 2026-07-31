@@ -34,6 +34,12 @@ function assertValidReps(reps: number): void {
   }
 }
 
+/** Target pace is optional (decision 17); when present it must be finite and positive. */
+function assertValidPace(paceSecondsPerKm: number | undefined): void {
+  if (paceSecondsPerKm === undefined) return
+  assertFinitePositive(paceSecondsPerKm, 'targetPaceSecondsPerKm')
+}
+
 function assertValidSession(session: Session): void {
   switch (session.type) {
     case 'easy':
@@ -43,17 +49,17 @@ function assertValidSession(session: Session): void {
     case 'tempo':
       assertValidReps(session.reps)
       assertFinitePositive(session.tempoMeters, 'tempoMeters')
-      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
+      assertValidPace(session.targetPaceSecondsPerKm)
       return
     case 'intervals':
       assertValidReps(session.reps)
       assertFinitePositive(session.repMeters, 'repMeters')
-      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
+      assertValidPace(session.targetPaceSecondsPerKm)
       return
     case 'hills':
       assertValidReps(session.reps)
       assertFinitePositive(session.hillMeters, 'hillMeters')
-      assertFinitePositive(session.targetPaceSecondsPerKm, 'targetPaceSecondsPerKm')
+      assertValidPace(session.targetPaceSecondsPerKm)
       return
     default: {
       const exhaustive: never = session

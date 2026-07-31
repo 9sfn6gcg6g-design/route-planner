@@ -16,8 +16,8 @@ export interface TempoSession {
   /** Per-rep tempo block length (decision 14). reps: 1 is a single block. */
   tempoMeters: number
   recovery: RecoveryType
-  /** Runner's target pace, seconds per km (decision 13). Workout metadata: never an engine input. */
-  targetPaceSecondsPerKm: number
+  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  targetPaceSecondsPerKm?: number
 }
 
 export interface IntervalsSession {
@@ -25,16 +25,16 @@ export interface IntervalsSession {
   reps: number
   repMeters: number
   recovery: RecoveryType
-  /** Runner's target pace, seconds per km (decision 13). Workout metadata: never an engine input. */
-  targetPaceSecondsPerKm: number
+  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  targetPaceSecondsPerKm?: number
 }
 
 export interface HillsSession {
   type: 'hills'
   reps: number
   hillMeters: number
-  /** Runner's target pace, seconds per km (decision 13). Workout metadata: never an engine input. */
-  targetPaceSecondsPerKm: number
+  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  targetPaceSecondsPerKm?: number
 }
 
 export type Session =

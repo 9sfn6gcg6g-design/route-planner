@@ -49,10 +49,14 @@ function positiveInt(raw: string): { value: number } | { error: string } {
   return { value: n }
 }
 
-/** "mm:ss" per km → seconds/km at the edge (decision 13). */
-function pace(raw: string): { value: number } | { error: string } {
+/**
+ * "mm:ss" per km → seconds/km at the edge (decision 13). Optional (decision
+ * 17): an empty field is valid and yields no pace (`value: undefined`); only a
+ * non-empty, malformed value errors.
+ */
+function pace(raw: string): { value: number | undefined } | { error: string } {
   const trimmed = raw.trim()
-  if (trimmed === '') return { error: 'Required' }
+  if (trimmed === '') return { value: undefined }
   const match = /^(\d{1,2}):([0-5]\d)$/.exec(trimmed)
   if (!match) return { error: 'Enter pace as mm:ss (e.g. 5:10)' }
   const seconds = Number(match[1]) * 60 + Number(match[2])
@@ -90,7 +94,9 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
             reps: reps.value,
             tempoMeters: kmToMeters(tempoMeters.value),
             recovery: values.recovery,
-            targetPaceSecondsPerKm: targetPace.value,
+            ...(targetPace.value !== undefined
+              ? { targetPaceSecondsPerKm: targetPace.value }
+              : {}),
           },
         }
       }
@@ -112,7 +118,9 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
             reps: reps.value,
             repMeters: Math.round(repMeters.value),
             recovery: values.recovery,
-            targetPaceSecondsPerKm: targetPace.value,
+            ...(targetPace.value !== undefined
+              ? { targetPaceSecondsPerKm: targetPace.value }
+              : {}),
           },
         }
       }
@@ -133,7 +141,9 @@ export function parseSessionForm(values: SessionFormValues): ParseResult {
             type: 'hills',
             reps: reps.value,
             hillMeters: Math.round(hillMeters.value),
-            targetPaceSecondsPerKm: targetPace.value,
+            ...(targetPace.value !== undefined
+              ? { targetPaceSecondsPerKm: targetPace.value }
+              : {}),
           },
         }
       }

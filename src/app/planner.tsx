@@ -146,11 +146,11 @@ function Field({
   )
 }
 
-/** Target pace in seconds/km for structured sessions; null for easy/long. */
+/** Target pace in seconds/km for structured sessions; null for easy/long or when omitted (decision 17). */
 function sessionPace(session: Session): number | null {
   return session.type === 'easy' || session.type === 'long'
     ? null
-    : session.targetPaceSecondsPerKm
+    : session.targetPaceSecondsPerKm ?? null
 }
 
 function PaceField({
@@ -163,7 +163,7 @@ function PaceField({
   error?: string
 }) {
   return (
-    <Field label="Target pace" hint="mm:ss per km" error={error}>
+    <Field label="Target pace" hint="mm:ss per km · optional" error={error}>
       <input
         className={inputClass}
         inputMode="text"
