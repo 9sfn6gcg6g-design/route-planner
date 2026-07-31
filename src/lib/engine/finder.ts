@@ -95,6 +95,8 @@ export async function findWorkSegments(
         gradientPercent: gradient,
         wantsClimb: requirements.minAvgGradientPercent !== null,
         crossings,
+        weights: requirements.qualityWeights,
+        gradientShape: requirements.gradientShape,
       })
       results.push({
         points: chain.points,

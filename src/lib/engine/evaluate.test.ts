@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import type { TerrainRequirements } from '@/lib/domain/types'
-import { chainMinQuietness, evaluateChain, segmentQuality } from './evaluate'
+import type { QualityWeights, TerrainRequirements } from '@/lib/domain/types'
+import { chainMinQuietness, DEFAULT_QUALITY_WEIGHTS, evaluateChain, segmentQuality } from './evaluate'
 import type { Chain, RunEdge, SurfaceKind } from './types'
+
+/** A structured profile: flow (crossings/turns) weighted high, repetition ~0. */
+const structuredWeights: QualityWeights = {
+  quietness: 0.3,
+  gradient: 0.18,
+  crossingFree: 0.27,
+  turnSmoothness: 0.15,
+  turnDensity: 0.1,
+  nonRepetition: 0,
+}
+/** An easy profile: flow relaxed, non-repetition weighted high. */
+const easyWeights: QualityWeights = {
+  quietness: 0.35,
+  gradient: 0.15,
+  crossingFree: 0.1,
+  turnSmoothness: 0.05,
+  turnDensity: 0.05,
+  nonRepetition: 0.3,
+}
 
 function edge(lengthMeters: number, quietness: number, surface: SurfaceKind): RunEdge {
   return {
@@ -38,6 +57,8 @@ const intervals: TerrainRequirements = {
   minQuietness: 0.7,
   surface: 'paved',
   minUninterruptedMeters: 800,
+  qualityWeights: structuredWeights,
+  gradientShape: 'even',
 }
 
 const hills: TerrainRequirements = {
@@ -47,6 +68,8 @@ const hills: TerrainRequirements = {
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
+  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0 },
+  gradientShape: 'sustained',
 }
 
 describe('chainMinQuietness', () => {
@@ -136,6 +159,80 @@ describe('segmentQuality (decision 16)', () => {
     )
     expect(segmentQuality({ ...base, crossings: 1 })).toBeGreaterThan(
       segmentQuality({ ...base, crossings: 3 }),
+    )
+  })
+})
+
+describe('decision 18: flow is session-weighted', () => {
+  const base = { minQuietness: 0.8, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+
+  it('omitting weights equals the default profile, which sums to 1', () => {
+    const sum = Object.values(DEFAULT_QUALITY_WEIGHTS).reduce((a, b) => a + b, 0)
+    expect(sum).toBeCloseTo(1)
+    expect(segmentQuality(base)).toBeCloseTo(
+      segmentQuality({ ...base, weights: DEFAULT_QUALITY_WEIGHTS }),
+    )
+  })
+
+  it('a road crossing costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, crossings: 0 }) -
+      segmentQuality({ ...base, weights, crossings: 2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('a hairpin (low turn-smoothness) costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, turnSmoothness: 1 }) -
+      segmentQuality({ ...base, weights, turnSmoothness: 0.2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('a zig-zag (low turn-density) costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, turnDensity: 1 }) -
+      segmentQuality({ ...base, weights, turnDensity: 0.2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('retraced ground (low non-repetition) costs easy far more than structured', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, nonRepetition: 1 }) -
+      segmentQuality({ ...base, weights, nonRepetition: 0.2 })
+    expect(drop(easyWeights)).toBeGreaterThan(drop(structuredWeights))
+  })
+
+  it('every session profile stays in [0, 1] at its worst inputs', () => {
+    const worst = {
+      minQuietness: 0,
+      gradientPercent: 20,
+      wantsClimb: false,
+      crossings: 5,
+      turnSmoothness: 0,
+      turnDensity: 0,
+      nonRepetition: 0,
+    }
+    for (const weights of [structuredWeights, easyWeights]) {
+      const q = segmentQuality({ ...worst, weights })
+      expect(q).toBeGreaterThanOrEqual(0)
+      expect(q).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
+describe('decision 19: gradient shape scales fit', () => {
+  const climb = { minQuietness: 0.9, gradientPercent: 8, wantsClimb: true, crossings: 0 }
+
+  it('a rolling climb (low consistency) scores below a sustained one for hills', () => {
+    const sustained = segmentQuality({ ...climb, gradientShape: 'sustained', gradientConsistency: 1 })
+    const rolling = segmentQuality({ ...climb, gradientShape: 'sustained', gradientConsistency: 0.3 })
+    expect(sustained).toBeGreaterThan(rolling)
+  })
+
+  it('shape "any" ignores consistency (easy/long score on the average alone)', () => {
+    const flat = { minQuietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+    expect(segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 0.2 })).toBeCloseTo(
+      segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 1 }),
     )
   })
 })
