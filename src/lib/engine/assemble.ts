@@ -1,6 +1,16 @@
 import type { LatLon } from './types'
-import type { FootRoute } from './connectors'
 import { haversineMeters } from './geo'
+
+/**
+ * The minimal shape route assembly needs from a connector leg or a loop: an
+ * ordered polyline and its real ground length. Both a keyless graph route
+ * (`route.ts`) and any hosted A→B route satisfy it, so assembly does not care
+ * which produced the leg.
+ */
+export interface Path {
+  points: LatLon[]
+  lengthMeters: number
+}
 
 export interface WorkGeometry {
   points: LatLon[]
@@ -44,6 +54,19 @@ export function buildWorkGeometry(
   return { points, meters: segment.lengthMeters * passes, passes }
 }
 
+/**
+ * Orient a non-cycle stretch so the end nearer the runner's start comes first
+ * (its point order is walk-order-determined, not runner-aware). Returns a copy;
+ * never mutates the input.
+ */
+export function orientStretchToStart(points: LatLon[], start: LatLon): LatLon[] {
+  const first = points[0]
+  const last = points[points.length - 1]
+  return haversineMeters(last, start) < haversineMeters(first, start)
+    ? [...points].reverse()
+    : points
+}
+
 /** Rotate a closed ring so it starts at the point nearest the target. */
 export function rotateRingToNearest(ring: LatLon[], target: LatLon): LatLon[] {
   const first = ring[0]
@@ -67,9 +90,9 @@ export function rotateRingToNearest(ring: LatLon[], target: LatLon): LatLon[] {
 }
 
 export function assembleRoute(
-  warmup: FootRoute,
+  warmup: Path,
   work: WorkGeometry,
-  cooldown: FootRoute,
+  cooldown: Path,
 ): AssembledRoute {
   const points: LatLon[] = [...warmup.points]
   const phases: RoutePhaseSpan[] = [
@@ -89,7 +112,7 @@ export function assembleRoute(
 }
 
 /** Easy/long loops have no connectors: the whole loop is the work phase. */
-export function assembleLoopRoute(loop: FootRoute): AssembledRoute {
+export function assembleLoopRoute(loop: Path): AssembledRoute {
   return {
     points: [...loop.points],
     totalMeters: loop.lengthMeters,
