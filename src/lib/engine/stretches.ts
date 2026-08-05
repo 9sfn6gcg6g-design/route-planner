@@ -1,7 +1,7 @@
 import type { Chain, LatLon, RunEdge, RunGraph } from './types'
 import { buildChains } from './chains'
 import { chainMinQuietness } from './evaluate'
-import { bearingDegrees, classifyTurn, type TurnClass } from './geo'
+import { bearingDegrees, classifyTurn, signedTurnDegrees } from './geo'
 
 /**
  * A work stretch assembled from corridor chains (decision 15). Where a plain
@@ -15,6 +15,10 @@ export interface Stretch {
   /** Straight-across junctions traversed while assembling: the forced road
    *  crossings the runner would face. Turns contribute nothing. */
   crossings: number
+  /** Signed heading change taken at each junction the assembly extended through
+   *  (decision 18), for scoring turn-smoothness and turn-density. Empty when the
+   *  corridor was returned unextended. */
+  turnAngles: number[]
 }
 
 export interface AssembleOptions {
@@ -31,15 +35,26 @@ export interface AssembleOptions {
   continuation?: 'turns' | 'flow'
 }
 
+/** A corridor considered for extending a stretch through a junction. */
+interface Candidate {
+  chain: Chain
+  oriented: { points: LatLon[]; edges: RunEdge[]; endNode: number }
+  /** Signed heading change taken to enter this corridor; sign is the turn side. */
+  signed: number
+  isCrossing: boolean
+  isBack: boolean
+  quietness: number
+}
+
+/** Sort key for the left-before-right tiebreak: left (anticlockwise) sorts first. */
+const turnSide = (signed: number): number => (signed < 0 ? 0 : 1)
+
 /** Below this length a corridor's quietness is discounted proportionally under
  *  'flow', so an 11m sliver never outranks a real continuation. */
 const FLOW_SUSTAIN_METERS = 200
 
 const flowScore = (quietness: number, chain: Chain): number =>
   quietness * Math.min(1, chain.lengthMeters / FLOW_SUSTAIN_METERS)
-
-/** Continuation preference: a left turn beats a right, a right beats straight. */
-const CLASS_RANK: Record<TurnClass, number> = { left: 0, right: 1, straight: 2, back: 3 }
 
 const firstBearing = (points: LatLon[]): number => bearingDegrees(points[0], points[1])
 const lastBearing = (points: LatLon[]): number =>
@@ -90,7 +105,7 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
   const stretches: Stretch[] = []
   for (const seed of corridors) {
     if (seed.isCycle) {
-      stretches.push({ chain: seed, crossings: 0 })
+      stretches.push({ chain: seed, crossings: 0, turnAngles: [] })
       continue
     }
 
@@ -102,33 +117,50 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
     let node = seed.endNodeId
     let arrivalBearing = lastBearing(seed.points)
     let crossings = 0
+    const turnAngles: number[] = []
 
     for (let hop = 0; lengthMeters < targetMeters && hop < maxHops; hop++) {
-      const candidates = (incidence.get(node) ?? [])
+      const candidates: Candidate[] = (incidence.get(node) ?? [])
         .filter((chain) => !visited.has(chain))
         .map((chain) => {
           const oriented = orientedFromNode(chain, node)
+          const departure = firstBearing(oriented.points)
+          const turn = classifyTurn(arrivalBearing, departure)
           return {
             chain,
             oriented,
-            turn: classifyTurn(arrivalBearing, firstBearing(oriented.points)),
+            signed: signedTurnDegrees(arrivalBearing, departure),
+            isCrossing: turn === 'straight',
+            isBack: turn === 'back',
             quietness: chainMinQuietness(chain),
           }
         })
-        .filter((candidate) => candidate.turn !== 'back')
+        .filter((candidate) => !candidate.isBack)
       if (candidates.length === 0) break
 
+      // Decision 18: prefer the gentlest non-crossing continuation. Turns beat a
+      // straight-across crossing; among turns the gentler wins; left-before-right
+      // only breaks a tie between equally sharp turns (nearside without crossing
+      // the carriageway). Quietness then corridorKey keep it deterministic.
+      const byGentlest = (a: Candidate, b: Candidate): number =>
+        Number(a.isCrossing) - Number(b.isCrossing) ||
+        Math.abs(a.signed) - Math.abs(b.signed) ||
+        turnSide(a.signed) - turnSide(b.signed) ||
+        b.quietness - a.quietness ||
+        corridorKey(a.chain).localeCompare(corridorKey(b.chain))
+
+      // 'flow' (decision 17, conversational) leads on sustained quietness
+      // instead: crossings are tolerated at conversational effort, so a
+      // fragmented waterfront keeps the stretch rather than turning off it.
+      // Decision 18's order is the tiebreak, keeping both rules deterministic.
       candidates.sort((a, b) =>
         continuation === 'flow'
-          ? flowScore(b.quietness, b.chain) - flowScore(a.quietness, a.chain) ||
-            CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
-            corridorKey(a.chain).localeCompare(corridorKey(b.chain))
-          : CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
-            b.quietness - a.quietness ||
-            corridorKey(a.chain).localeCompare(corridorKey(b.chain)),
+          ? flowScore(b.quietness, b.chain) - flowScore(a.quietness, a.chain) || byGentlest(a, b)
+          : byGentlest(a, b),
       )
       const chosen = candidates[0]
-      if (chosen.turn === 'straight') crossings++
+      if (chosen.isCrossing) crossings++
+      turnAngles.push(chosen.signed)
 
       points.push(...chosen.oriented.points.slice(1))
       edges.push(...chosen.oriented.edges)
@@ -150,6 +182,7 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
         toleratedJunctionNodeIds: tolerated,
       },
       crossings,
+      turnAngles,
     })
   }
 

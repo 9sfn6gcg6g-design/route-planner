@@ -59,3 +59,39 @@ describe('terrainRequirementsFor', () => {
     expect(long.minUninterruptedMeters).toBeNull()
   })
 })
+
+describe('decision 18: quality weights are session-tuned and sum to 1', () => {
+  const intervals = terrainRequirementsFor({
+    type: 'intervals',
+    reps: 6,
+    repMeters: 800,
+    recovery: 'jog',
+  })
+  const easy = terrainRequirementsFor({ type: 'easy', distanceMeters: 8000 })
+  const hills = terrainRequirementsFor({ type: 'hills', reps: 8, hillMeters: 300 })
+
+  it('every profile sums to 1', () => {
+    for (const req of [
+      easy,
+      terrainRequirementsFor({ type: 'long', distanceMeters: 20000 }),
+      terrainRequirementsFor({ type: 'tempo', reps: 1, tempoMeters: 3000, recovery: 'jog' }),
+      intervals,
+      hills,
+    ]) {
+      const sum = Object.values(req.qualityWeights).reduce((a, b) => a + b, 0)
+      expect(sum).toBeCloseTo(1)
+    }
+  })
+
+  it('structured work weights flow (crossings/turns) above easy; easy weights non-repetition above structured', () => {
+    expect(intervals.qualityWeights.crossingFree).toBeGreaterThan(easy.qualityWeights.crossingFree)
+    expect(intervals.qualityWeights.turnSmoothness).toBeGreaterThan(easy.qualityWeights.turnSmoothness)
+    expect(easy.qualityWeights.nonRepetition).toBeGreaterThan(intervals.qualityWeights.nonRepetition)
+  })
+
+  it('decision 19: hills read a sustained climb, tempo an even one, easy any', () => {
+    expect(hills.gradientShape).toBe('sustained')
+    expect(terrainRequirementsFor({ type: 'tempo', reps: 1, tempoMeters: 3000, recovery: 'jog' }).gradientShape).toBe('even')
+    expect(easy.gradientShape).toBe('any')
+  })
+})

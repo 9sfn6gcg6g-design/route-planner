@@ -7,7 +7,41 @@ import {
   haversineMeters,
   pathLengthMeters,
   signedTurnDegrees,
+  turnFlowScores,
+  turnSmoothness,
 } from './geo'
+
+describe('turnSmoothness (decision 18)', () => {
+  it('a gentle sweep is fully smooth; a hairpin is not; sign is irrelevant', () => {
+    expect(turnSmoothness(20)).toBe(1)
+    expect(turnSmoothness(-20)).toBe(1)
+    expect(turnSmoothness(135)).toBe(0)
+    expect(turnSmoothness(90)).toBe(turnSmoothness(-90))
+    expect(turnSmoothness(90)).toBeGreaterThan(0)
+    expect(turnSmoothness(90)).toBeLessThan(1)
+  })
+
+  it('decays monotonically between gentle and sharp', () => {
+    expect(turnSmoothness(60)).toBeGreaterThan(turnSmoothness(100))
+  })
+})
+
+describe('turnFlowScores (decision 18)', () => {
+  it('no turns is perfectly smooth and legible', () => {
+    expect(turnFlowScores([], 1000)).toEqual({ turnSmoothness: 1, turnDensity: 1 })
+  })
+
+  it('one hairpin drags smoothness down; gentle sweeps do not count as navigational turns', () => {
+    expect(turnFlowScores([10, 15, -20], 1000).turnDensity).toBe(1) // all below the gentle threshold
+    expect(turnFlowScores([130], 1000).turnSmoothness).toBeLessThan(0.1)
+  })
+
+  it('more navigational turns per km lowers density', () => {
+    const few = turnFlowScores([90, 90], 2000).turnDensity
+    const many = turnFlowScores([90, 90, 90, 90, 90, 90], 2000).turnDensity
+    expect(many).toBeLessThan(few)
+  })
+})
 
 describe('haversineMeters', () => {
   it('measures one degree of latitude as ~111.2km', () => {

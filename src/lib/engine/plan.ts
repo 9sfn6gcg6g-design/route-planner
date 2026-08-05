@@ -1,7 +1,8 @@
 import type { Session, SessionPlan } from '@/lib/domain/types'
 import { compileSession } from '@/lib/domain/compiler'
-import type { LatLon, OsmWay } from './types'
+import type { LatLon } from './types'
 import type { FootRoute } from './connectors'
+import type { OverpassData } from './overpass'
 import { assembleLoopRoute, assembleRoute, buildWorkGeometry, rotateRingToNearest } from './assemble'
 import type { AssembledRoute } from './assemble'
 import { buildGraph } from './graph'
@@ -10,7 +11,7 @@ import { haversineMeters } from './geo'
 import { toGpx } from './gpx'
 
 export interface RoutePlanDeps {
-  fetchWays(center: LatLon, radiusMeters: number): Promise<OsmWay[]>
+  fetchWays(center: LatLon, radiusMeters: number): Promise<OverpassData>
   sampleElevations: ElevationSampler
   fetchFootRoute(from: LatLon, to: LatLon): Promise<FootRoute>
   fetchRoundTrip(start: LatLon, lengthMeters: number): Promise<FootRoute>
@@ -90,8 +91,8 @@ export async function generateRoute(
   const maxDistance = options.maxDistanceFromStartMeters ?? 2000
   const fetchRadius =
     maxDistance + Math.max(1000, workPhase.requirements.minUninterruptedMeters ?? 0)
-  const ways = await deps.fetchWays(start, fetchRadius)
-  const graph = buildGraph(ways)
+  const { ways, barrierNodeIds } = await deps.fetchWays(start, fetchRadius)
+  const graph = buildGraph(ways, barrierNodeIds)
   const segments = await findWorkSegments(
     graph,
     start,

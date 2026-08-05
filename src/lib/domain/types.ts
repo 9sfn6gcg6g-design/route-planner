@@ -46,6 +46,34 @@ export type Session =
 
 export type SurfaceClass = 'paved' | 'any'
 
+/**
+ * How much each quality dimension counts toward the single 0–1 score, per
+ * session type (decision 18). Two families: ground (quietness, gradient) and
+ * flow (crossingFree, turnSmoothness, turnDensity, nonRepetition), plus
+ * decision 17's lengthFit for conversational sessions. Weights must sum to 1 so
+ * quality lands in [0, 1]. Chosen in `domain` and read by `engine` type-only, so
+ * the engine gains the profile but never sees pace (decisions 13, 17): a flow
+ * profile is terrain-shaping metadata, not pace.
+ */
+export interface QualityWeights {
+  quietness: number
+  gradient: number
+  crossingFree: number
+  turnSmoothness: number
+  turnDensity: number
+  nonRepetition: number
+  /** Stretch length over the capped work-phase target (decision 17). Work
+   *  sessions gate on `minUninterruptedMeters` instead and weight this 0. */
+  lengthFit: number
+}
+
+/**
+ * The gradient shape the session reads (decision 19). `even` rewards low
+ * gradient variance (tempo); `sustained` rewards one continuous climb (hills);
+ * `any` scores on the average alone (easy/long).
+ */
+export type GradientShape = 'any' | 'even' | 'sustained'
+
 export interface TerrainRequirements {
   /** Mean |gradient| ceiling along the work segment, in percent. */
   maxAvgGradientPercent: number
@@ -57,6 +85,10 @@ export interface TerrainRequirements {
   surface: SurfaceClass
   /** Longest stretch the runner must cover without a forced stop; null = no requirement. */
   minUninterruptedMeters: number | null
+  /** Per-session quality blend (decision 18). */
+  qualityWeights: QualityWeights
+  /** Gradient shape this session reads (decision 19). */
+  gradientShape: GradientShape
 }
 
 export type PhaseKind = 'warmup' | 'work' | 'cooldown'

@@ -43,7 +43,7 @@ export function gpxFileName(session: Session): string {
 
 /**
  * The session's target pace in seconds/km, or null when there is none: easy/long
- * are conversational, and structured sessions may omit it (decisions 13, 17).
+ * are conversational, and structured sessions may omit it (decisions 13, 22).
  * Pace is workout metadata surfaced in results and the GPX — never an engine input.
  */
 export function sessionTargetPace(session: Session): number | null {

@@ -59,6 +59,21 @@ describe('assembleStretches — turn preference', () => {
     expect(stretch!.chain.endNodeId).toBe(50) // went straight east
     expect(stretch!.crossings).toBe(1)
   })
+
+  it('prefers the gentler of two same-side turns and records the angle (decision 18)', () => {
+    // Both branches turn right off the eastward approach: G by ~60°, Sharp by
+    // ~110°. The old left>right>straight rule could not tell them apart; the
+    // gentlest-first rule takes G.
+    const G: [number, number] = [51.448444, -2.578557] // ~60° right
+    const Sharp: [number, number] = [51.44831, -2.580987] // ~110° right
+    const graph = buildGraph([way(1, [10, 20], [A, J]), way(2, [20, 30], [J, G]), way(3, [20, 40], [J, Sharp])])
+    const stretch = assembleStretches(graph, { targetMeters: 700 }).find((s) => s.chain.startNodeId === 10)
+    expect(stretch).toBeDefined()
+    expect(stretch!.chain.endNodeId).toBe(30) // took the gentler turn
+    expect(stretch!.crossings).toBe(0)
+    expect(stretch!.turnAngles).toHaveLength(1)
+    expect(Math.abs(stretch!.turnAngles[0])).toBeLessThan(90)
+  })
 })
 
 describe('assembleStretches — flow continuation (decision 17)', () => {
@@ -95,6 +110,7 @@ describe('assembleStretches — invariants', () => {
     const stretches = assembleStretches(graph) // targetMeters defaults to 0
     expect(stretches).toHaveLength(corridors.length)
     expect(stretches.every((s) => s.crossings === 0)).toBe(true)
+    expect(stretches.every((s) => s.turnAngles.length === 0)).toBe(true)
     const corridorLength = corridors.reduce((sum, c) => sum + c.lengthMeters, 0)
     const stretchLength = stretches.reduce((sum, s) => sum + s.chain.lengthMeters, 0)
     expect(stretchLength).toBeCloseTo(corridorLength, 6)

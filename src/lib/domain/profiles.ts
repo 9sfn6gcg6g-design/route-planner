@@ -1,11 +1,75 @@
-import type { Session, TerrainRequirements } from './types'
+import type { QualityWeights, Session, TerrainRequirements } from './types'
+
+/**
+ * Per-session quality blends (decision 18). Structured work (tempo/intervals/
+ * hills) weights the flow dimensions — crossing-freeness, turn-smoothness,
+ * turn-density — high, because a hard effort is wrecked by forced stops,
+ * hairpins and constant navigation; non-repetition is ~0 since a rep session
+ * repeats one segment by design (decision 21). Easy/long invert it: they relax
+ * flow and weight non-repetition high, so the run varies its ground rather than
+ * pounding an out-and-back.
+ *
+ * Easy/long additionally carry decision 17: `crossingFree` is **0** — a
+ * conversational session has no target pace for a kerb pause to break, so
+ * crossings are annotated, never scored — and `lengthFit` takes that weight,
+ * because their ground need is distance rather than uninterrupted length. Work
+ * sessions gate on `minUninterruptedMeters` instead and weight `lengthFit` 0.
+ *
+ * Every profile sums to 1. v1 constants, tunable.
+ */
+const INTERVALS_WEIGHTS: QualityWeights = {
+  quietness: 0.3,
+  gradient: 0.18,
+  crossingFree: 0.27,
+  turnSmoothness: 0.15,
+  turnDensity: 0.1,
+  nonRepetition: 0,
+  lengthFit: 0,
+}
+const TEMPO_WEIGHTS: QualityWeights = {
+  quietness: 0.32,
+  gradient: 0.18,
+  crossingFree: 0.25,
+  turnSmoothness: 0.15,
+  turnDensity: 0.1,
+  nonRepetition: 0,
+  lengthFit: 0,
+}
+const HILLS_WEIGHTS: QualityWeights = {
+  quietness: 0.25,
+  gradient: 0.35,
+  crossingFree: 0.2,
+  turnSmoothness: 0.12,
+  turnDensity: 0.08,
+  nonRepetition: 0,
+  lengthFit: 0,
+}
+const EASY_WEIGHTS: QualityWeights = {
+  quietness: 0.25,
+  gradient: 0.08,
+  crossingFree: 0,
+  turnSmoothness: 0.04,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
+}
+const LONG_WEIGHTS: QualityWeights = {
+  quietness: 0.28,
+  gradient: 0.06,
+  crossingFree: 0,
+  turnSmoothness: 0.03,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
+}
 
 /**
  * Terrain-requirement profile per session type. Values are the product
  * decisions from the 2026-07-26 grilling session: intervals want flat,
  * smooth, quiet, uninterrupted; hills invert the gradient requirement;
  * easy/long relax everything. maxJunctionsPerKm counts tolerated minor joins
- * per km (see engine chains), not road crossings.
+ * per km (see engine chains), not road crossings. `qualityWeights` and
+ * `gradientShape` carry decisions 18/19 into the engine (which never sees pace).
  */
 export function terrainRequirementsFor(session: Session): TerrainRequirements {
   switch (session.type) {
@@ -17,6 +81,8 @@ export function terrainRequirementsFor(session: Session): TerrainRequirements {
         minQuietness: 0.4,
         surface: 'any',
         minUninterruptedMeters: null,
+        qualityWeights: EASY_WEIGHTS,
+        gradientShape: 'any',
       }
     case 'long':
       return {
@@ -26,6 +92,8 @@ export function terrainRequirementsFor(session: Session): TerrainRequirements {
         minQuietness: 0.5,
         surface: 'any',
         minUninterruptedMeters: null,
+        qualityWeights: LONG_WEIGHTS,
+        gradientShape: 'any',
       }
     case 'tempo':
       return {
@@ -35,6 +103,8 @@ export function terrainRequirementsFor(session: Session): TerrainRequirements {
         minQuietness: 0.6,
         surface: 'paved',
         minUninterruptedMeters: Math.min(session.tempoMeters, 1500),
+        qualityWeights: TEMPO_WEIGHTS,
+        gradientShape: 'even',
       }
     case 'intervals':
       return {
@@ -44,6 +114,8 @@ export function terrainRequirementsFor(session: Session): TerrainRequirements {
         minQuietness: 0.7,
         surface: 'paved',
         minUninterruptedMeters: session.repMeters,
+        qualityWeights: INTERVALS_WEIGHTS,
+        gradientShape: 'even',
       }
     case 'hills':
       return {
@@ -53,6 +125,8 @@ export function terrainRequirementsFor(session: Session): TerrainRequirements {
         minQuietness: 0.5,
         surface: 'any',
         minUninterruptedMeters: session.hillMeters,
+        qualityWeights: HILLS_WEIGHTS,
+        gradientShape: 'sustained',
       }
   }
 }

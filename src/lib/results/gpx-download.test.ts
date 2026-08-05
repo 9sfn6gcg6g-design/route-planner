@@ -29,7 +29,7 @@ describe('buildGpxDownload', () => {
     expect(buildGpxDownload(tempo, points).contents).toContain('<name>Tempo 5.0 km</name>')
   })
 
-  it('includes the target pace in the description when present (decision 17)', () => {
+  it('includes the target pace in the description when present (decision 22)', () => {
     expect(buildGpxDownload(tempo, points).contents).toContain('<desc>Target pace 5:10/km</desc>')
   })
 

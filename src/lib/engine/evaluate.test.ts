@@ -1,7 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import type { TerrainRequirements } from '@/lib/domain/types'
-import { chainMeanQuietness, chainMinQuietness, evaluateChain, segmentQuality } from './evaluate'
+import type { QualityWeights, TerrainRequirements } from '@/lib/domain/types'
+import {
+  chainMeanQuietness,
+  chainMinQuietness,
+  DEFAULT_QUALITY_WEIGHTS,
+  evaluateChain,
+  segmentQuality,
+} from './evaluate'
 import type { Chain, RunEdge, SurfaceKind } from './types'
+
+/** A structured profile: flow (crossings/turns) weighted high, repetition ~0. */
+const structuredWeights: QualityWeights = {
+  quietness: 0.3,
+  gradient: 0.18,
+  crossingFree: 0.27,
+  turnSmoothness: 0.15,
+  turnDensity: 0.1,
+  nonRepetition: 0,
+  lengthFit: 0,
+}
+/**
+ * An easy profile: flow relaxed, non-repetition weighted high (decision 18),
+ * and — decision 17 — no crossing penalty at all, with that weight moved to
+ * length-fit. Mirrors `EASY_WEIGHTS` in `domain/profiles.ts`.
+ */
+const easyWeights: QualityWeights = {
+  quietness: 0.25,
+  gradient: 0.08,
+  crossingFree: 0,
+  turnSmoothness: 0.04,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
+}
 
 function edge(lengthMeters: number, quietness: number, surface: SurfaceKind): RunEdge {
   return {
@@ -38,6 +69,8 @@ const intervals: TerrainRequirements = {
   minQuietness: 0.7,
   surface: 'paved',
   minUninterruptedMeters: 800,
+  qualityWeights: structuredWeights,
+  gradientShape: 'even',
 }
 
 const hills: TerrainRequirements = {
@@ -47,6 +80,8 @@ const hills: TerrainRequirements = {
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
+  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0, lengthFit: 0 },
+  gradientShape: 'sustained',
 }
 
 describe('chainMinQuietness', () => {
@@ -163,6 +198,86 @@ describe('segmentQuality (decision 16)', () => {
   })
 })
 
+describe('decision 18: flow is session-weighted', () => {
+  const base = { quietness: 0.8, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+
+  it('omitting weights equals the default profile, which sums to 1', () => {
+    const sum = Object.values(DEFAULT_QUALITY_WEIGHTS).reduce((a, b) => a + b, 0)
+    expect(sum).toBeCloseTo(1)
+    expect(segmentQuality(base)).toBeCloseTo(
+      segmentQuality({ ...base, weights: DEFAULT_QUALITY_WEIGHTS }),
+    )
+  })
+
+  it('a road crossing costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, crossings: 0 }) -
+      segmentQuality({ ...base, weights, crossings: 2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('a hairpin (low turn-smoothness) costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, turnSmoothness: 1 }) -
+      segmentQuality({ ...base, weights, turnSmoothness: 0.2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('a zig-zag (low turn-density) costs a structured session more than an easy one', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, turnDensity: 1 }) -
+      segmentQuality({ ...base, weights, turnDensity: 0.2 })
+    expect(drop(structuredWeights)).toBeGreaterThan(drop(easyWeights))
+  })
+
+  it('retraced ground (low non-repetition) costs easy far more than structured', () => {
+    const drop = (weights: QualityWeights): number =>
+      segmentQuality({ ...base, weights, nonRepetition: 1 }) -
+      segmentQuality({ ...base, weights, nonRepetition: 0.2 })
+    expect(drop(easyWeights)).toBeGreaterThan(drop(structuredWeights))
+  })
+
+  it('every session profile stays in [0, 1] at its worst inputs', () => {
+    const worst = {
+      quietness: 0,
+      gradientPercent: 20,
+      wantsClimb: false,
+      crossings: 5,
+      lengthMeters: 0,
+      conversationalTargetMeters: 3000,
+      turnSmoothness: 0,
+      turnDensity: 0,
+      nonRepetition: 0,
+    }
+    for (const weights of [structuredWeights, easyWeights]) {
+      const q = segmentQuality({ ...worst, weights })
+      expect(q).toBeGreaterThanOrEqual(0)
+      expect(q).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
+describe('decision 19: gradient shape scales fit', () => {
+  const climb = { quietness: 0.9, gradientPercent: 8, wantsClimb: true, crossings: 0 }
+
+  it('a rolling climb (low consistency) scores below a sustained one for hills', () => {
+    const sustained = segmentQuality({ ...climb, gradientShape: 'sustained', gradientConsistency: 1 })
+    const rolling = segmentQuality({ ...climb, gradientShape: 'sustained', gradientConsistency: 0.3 })
+    expect(sustained).toBeGreaterThan(rolling)
+  })
+
+  it('shape "any" ignores consistency (easy/long score on the average alone)', () => {
+    const flat = { quietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+    expect(segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 0.2 })).toBeCloseTo(
+      segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 1 }),
+    )
+  })
+})
+
+// Decision 17's conversational behaviour now rides on the easy/long weight
+// profile (decision 18) rather than a branch inside segmentQuality, so these
+// pass the profile explicitly — that is what the finder does via
+// `TerrainRequirements.qualityWeights`.
 describe('segmentQuality — conversational sessions (decision 17)', () => {
   const conv = {
     quietness: 0.9,
@@ -171,6 +286,7 @@ describe('segmentQuality — conversational sessions (decision 17)', () => {
     crossings: 0,
     lengthMeters: 2000,
     conversationalTargetMeters: 3000,
+    weights: easyWeights,
   }
 
   it('crossings carry no ranking penalty', () => {
@@ -204,7 +320,7 @@ describe('segmentQuality — conversational sessions (decision 17)', () => {
   it('judges gradient on a gentler curve than work stretches', () => {
     // At 4.3% the work flatness curve is nearly zero; a conversational run
     // barely notices rolling ground (terrain-tile noise must not crater it).
-    const work = { ...conv, conversationalTargetMeters: null }
+    const work = { ...conv, conversationalTargetMeters: null, weights: structuredWeights }
     const workDrop =
       segmentQuality({ ...work, gradientPercent: 0 }) -
       segmentQuality({ ...work, gradientPercent: 4.3 })

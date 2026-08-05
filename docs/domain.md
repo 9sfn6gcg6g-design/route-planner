@@ -9,7 +9,7 @@ everything.
 
 | Term | Meaning |
 |------|---------|
-| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 17); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
+| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 22); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
 | **SessionPlan** | The compiled shape of a session: ordered phases + work pattern + computed total distance. Total distance is computed, never asked. |
 | **Phase** | One leg of the run: `warmup` / `work` / `cooldown`. Connectors (warmup, cooldown) carry `requirements: null` = any runnable terrain. |
 | **TerrainRequirements** | What the work phase demands of the ground: gradient bounds, junction density, quietness, surface, minimum uninterrupted stretch. Rep length *is* the uninterrupted-stretch requirement. |
@@ -138,7 +138,78 @@ everything.
     door-to-door loops remain the v1.1 assembly plan's job; this makes v1's
     ranked stretches honest for conversational sessions until it lands.
 
-17. **Target pace is optional (2026-07-30).** Amends decisions 13 and 14: the
+18. **Route quality is two families; flow is session-weighted (2026-07-31).**
+    Amends decisions 15 and 16. A route's quality splits into two families: the
+    **ground** it covers (quietness, gradient fit) and the **flow** of running it
+    — how well the line keeps moving the way the session wants. Flow has four
+    dimensions, all 0–1, 1 = best: **crossing-freeness** (decision 16, formula
+    unchanged), **turn-smoothness** (gentle sweeps cost nothing; sharp turns cost
+    pace, hairpins most), **turn-density** (few direction changes make a legible,
+    flowing line — many *gentle* turns still break a hard effort; distinct from
+    `maxJunctionsPerKm`, which counts minor joins *passed through*, not turns
+    *taken*), and **non-repetition** (`1 − repeatedDistance/totalDistance` across a
+    loop or continuous route). Decision 16's quality weights stop being one global
+    constant set and become a **profile keyed by session type**: structured work
+    (tempo/intervals/hills) weights crossing-freeness and turn-smoothness/density
+    high; easy/long weight those low and weight non-repetition high (a rep session
+    repeats one segment by design, so non-repetition does not apply to its work —
+    see decision 21). The **compiler picks the profile** from the session and
+    passes it to the engine as part of what it already hands over
+    (`TerrainRequirements`), so the engine gains the weight profile but still
+    **never sees pace** (decisions 13, 22 stand) — a flow profile is
+    terrain-shaping metadata, not pace. Assembly changes too: decision 15's strict
+    left → right → straight preference becomes **gentlest non-crossing continuation
+    first**, with left-before-right kept only as a tiebreak between equally gentle
+    turns; a straight-across crossing stays the last resort and the tallied forced
+    stop. The blend weights and the gentle/sharp turn thresholds are v1 constants
+    in `engine/evaluate.ts`, tunable, and remain the home for future signals
+    (decision 7) — a new signal slots in as another weighted flow or ground
+    dimension without reshaping the interface.
+
+19. **Gradient is shape-aware, not just an average (2026-07-31).** Refines the
+    gradient dimension of decisions 15 and 16. An average gradient over a stretch
+    is blind to distribution: rolling ground and a steady climb can share a mean.
+    So the terrain requirement and the gradient-fit score read the **shape** of
+    the climb, per session: **hills** demand one **sustained** climb over the rep
+    length (not rolling ground that averages to target); **tempo** rewards **low
+    gradient variance** (even ground for even pacing); **easy/long** stay on the
+    average as today. The precise measures — how "sustained" and "variance" are
+    computed and bounded — are fixed in the implementing plan, not here; units are
+    unchanged (percent).
+
+20. **Runnable ground excludes hard obstacles (2026-07-31).** A work stretch or
+    loop must not route through a dead stop. `highway=steps` is already excluded at
+    the Overpass query (it is not a runnable highway class); this decision adds
+    **node barriers** — `barrier=gate`, `stile`, `kissing_gate`, `turnstile` and
+    kin — which the current query does not fetch at all. The graph build fetches
+    and honours them: an edge through a blocking barrier node is not runnable. A
+    gate at graph construction, alongside the surface gate; the exact barrier list
+    and any access-tag exceptions (e.g. `access=yes`, `foot=yes`) are fixed in the
+    implementing plan.
+
+21. **Loops are assembled on our own OSM graph, keyless, in v1 (2026-07-31).**
+    Supersedes decision 6's "hosted A→B routing for connectors (Openrouteservice)"
+    and amends decision 12: **door-to-door loop assembly moves from v1.1 into v1**,
+    and runs entirely on the scored `RunGraph` we already build around the start.
+    Connectors and closed-walk loops are shortest/quiet-path routing (Dijkstra/A*
+    over `RunEdge` weights) on that graph — **client-side, no API key** — so the
+    static GitHub Pages host (decision 12) is preserved; Openrouteservice returns
+    only if a backend host ever exists (decision 9's scaling path). Every result
+    becomes a route the runner can run from the door, exported as one continuous
+    GPX (decision 4). **Hill reps are structurally special:** the lap is a
+    sustained climb whose recovery is the **descent of the same climb**, so a hill
+    lap retraces by design and **non-repetition (decision 18) is suspended for it**
+    — the `back`-U-turn avoidance does not apply within the hill lap. Whether
+    **tempo** stays out-and-back (decision 11) or becomes a loop is **resolved in
+    the implementing plan**, not here. This promotes the existing
+    `docs/superpowers/plans/2026-07-29-v1-door-to-door-loops.md`, which already
+    chose this keyless-graph architecture.
+
+22. **Target pace is optional (2026-07-30).** *(Renumbered from 17 on
+    2026-08-05: two decisions were independently numbered 17. The
+    conversational-ranking decision keeps 17 — it is the one cited in
+    `engine/` — and this one moves to 22. Content is unchanged.)* Amends
+    decisions 13 and 14: the
     runner-entered **target pace** on `tempo`, `intervals` and `hills` is now
     **optional, not required**. `targetPaceSecondsPerKm` becomes an optional
     field on those sessions; everything else in decision 13 stands — when

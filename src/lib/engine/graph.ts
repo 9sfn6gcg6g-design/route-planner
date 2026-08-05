@@ -22,7 +22,7 @@ import { quietnessFor, surfaceKindFor } from './signals'
  * (e.g. junctions per km) must count only degree >= 3 nodes, not every
  * member of `junctionNodeIds`.
  */
-export function buildGraph(ways: OsmWay[]): RunGraph {
+export function buildGraph(ways: OsmWay[], barrierNodeIds: Set<number> = new Set()): RunGraph {
   const runnableWays = ways.filter((way) => Boolean(way.tags.highway))
 
   const usage = new Map<number, number>()
@@ -39,6 +39,17 @@ export function buildGraph(ways: OsmWay[]): RunGraph {
     if (count > 1) junctionNodeIds.add(nodeId)
   }
 
+  // A blocking barrier (decision 20) is a dead stop: split the way there and
+  // give each side of the gate its own synthetic node id, so the two edges no
+  // longer share a node and nothing routes *through* the barrier — while the
+  // ground on either side stays reachable. Synthetic ids are negative so they
+  // can never collide with a real OSM node id.
+  let nextSynthetic = -1
+  const identify = (nodeId: number): number =>
+    barrierNodeIds.has(nodeId) ? nextSynthetic-- : nodeId
+  const isBoundary = (nodeId: number): boolean =>
+    junctionNodeIds.has(nodeId) || barrierNodeIds.has(nodeId)
+
   const edges: RunEdge[] = []
   for (const way of runnableWays) {
     const quietness = quietnessFor(way.tags)
@@ -47,12 +58,12 @@ export function buildGraph(ways: OsmWay[]): RunGraph {
     let sliceStart = 0
     for (let i = 1; i < way.nodeIds.length; i++) {
       const isLast = i === way.nodeIds.length - 1
-      if (!isLast && !junctionNodeIds.has(way.nodeIds[i])) continue
+      if (!isLast && !isBoundary(way.nodeIds[i])) continue
       const points = way.points.slice(sliceStart, i + 1)
       edges.push({
         wayId: way.id,
-        fromNodeId: way.nodeIds[sliceStart],
-        toNodeId: way.nodeIds[i],
+        fromNodeId: identify(way.nodeIds[sliceStart]),
+        toNodeId: identify(way.nodeIds[i]),
         points,
         lengthMeters: pathLengthMeters(points),
         highway,

@@ -2,8 +2,8 @@ import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
 import { assembleStretches } from './stretches'
 import { chainMeanQuietness, evaluateChain, segmentQuality } from './evaluate'
-import { avgAbsGradientPercent } from './elevation'
-import { cumulativeMeters, haversineMeters } from './geo'
+import { avgAbsGradientPercent, gradientConsistency } from './elevation'
+import { cumulativeMeters, haversineMeters, turnFlowScores } from './geo'
 import { resamplePoints } from './resample'
 
 export type ElevationSampler = (points: LatLon[]) => Promise<number[]>
@@ -95,8 +95,13 @@ export async function findWorkSegments(
         }
       : { targetMeters: requirements.minUninterruptedMeters ?? 0 }
 
-  const candidates: Array<{ chain: Chain; distance: number; crossings: number }> = []
-  for (const { chain, crossings } of assembleStretches(graph, stretchOptions)) {
+  const candidates: Array<{
+    chain: Chain
+    distance: number
+    crossings: number
+    turnAngles: number[]
+  }> = []
+  for (const { chain, crossings, turnAngles } of assembleStretches(graph, stretchOptions)) {
     const distance = distanceFromStart(start, chain)
     if (distance > maxDistanceFromStartMeters) continue
     if (
@@ -105,7 +110,7 @@ export async function findWorkSegments(
     )
       continue
     if (!evaluateChain(chain, requirements, null).passes) continue
-    candidates.push({ chain, distance, crossings })
+    candidates.push({ chain, distance, crossings, turnAngles })
   }
 
   const results: WorkSegment[] = []
@@ -118,13 +123,14 @@ export async function findWorkSegments(
     const elevations = await sampleElevations(resampledAll.flat())
     let offset = 0
     for (let i = 0; i < candidates.length; i++) {
-      const { chain, distance, crossings } = candidates[i]
+      const { chain, distance, crossings, turnAngles } = candidates[i]
       const resampled = resampledAll[i]
       const slice = elevations.slice(offset, offset + resampled.length)
       offset += resampled.length
       const gradient = avgAbsGradientPercent(slice, cumulativeMeters(resampled))
       const evaluation = evaluateChain(chain, requirements, gradient)
       if (!evaluation.passes) continue
+      const { turnSmoothness, turnDensity } = turnFlowScores(turnAngles, chain.lengthMeters)
       const quality = segmentQuality({
         quietness:
           conversationalTargetMeters !== null
@@ -135,6 +141,11 @@ export async function findWorkSegments(
         crossings,
         lengthMeters: chain.lengthMeters,
         conversationalTargetMeters,
+        weights: requirements.qualityWeights,
+        gradientShape: requirements.gradientShape,
+        gradientConsistency: gradientConsistency(slice),
+        turnSmoothness,
+        turnDensity,
       })
       results.push({
         points: chain.points,

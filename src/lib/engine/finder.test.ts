@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import type { TerrainRequirements } from '@/lib/domain/types'
+import type { QualityWeights, TerrainRequirements } from '@/lib/domain/types'
 import { buildGraph } from './graph'
 import { findWorkSegments, type ElevationSampler } from './finder'
 import type { LatLon, OsmWay } from './types'
+
+const structuredWeights: QualityWeights = {
+  quietness: 0.3,
+  gradient: 0.18,
+  crossingFree: 0.27,
+  turnSmoothness: 0.15,
+  turnDensity: 0.1,
+  nonRepetition: 0,
+  lengthFit: 0,
+}
 
 /** A straight way heading north; step 0.001 lat ≈ 111m per hop. */
 function straightWay(
@@ -35,6 +45,8 @@ const intervals: TerrainRequirements = {
   minQuietness: 0.7,
   surface: 'paved',
   minUninterruptedMeters: 800,
+  qualityWeights: structuredWeights,
+  gradientShape: 'even',
 }
 
 const hills: TerrainRequirements = {
@@ -44,6 +56,8 @@ const hills: TerrainRequirements = {
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
+  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0, lengthFit: 0 },
+  gradientShape: 'sustained',
 }
 
 const flatSampler: ElevationSampler = async (points) => points.map(() => 10)
@@ -169,6 +183,16 @@ const easy: TerrainRequirements = {
   minQuietness: 0.4,
   surface: 'any',
   minUninterruptedMeters: null,
+  qualityWeights: {
+    quietness: 0.25,
+    gradient: 0.08,
+    crossingFree: 0,
+    turnSmoothness: 0.04,
+    turnDensity: 0.03,
+    nonRepetition: 0.25,
+    lengthFit: 0.35,
+  },
+  gradientShape: 'any',
 }
 
 describe('findWorkSegments — conversational sessions (decision 17)', () => {

@@ -55,6 +55,25 @@ export function avgAbsGradientPercent(elevations: number[], cumulative: number[]
   return (totalAbsRise / totalDistance) * 100
 }
 
+/**
+ * 0–1 gradient consistency (decision 19): |net elevation change| / total
+ * absolute rise. 1 when the profile moves in one direction — a sustained climb,
+ * or steady ground — and toward 0 when it rolls up and down. This is what tells
+ * a hill rep's single sustained climb apart from rolling ground that only
+ * *averages* to the target gradient (the two share an `avgAbsGradientPercent`).
+ * A flat profile has no vertical movement and is perfectly consistent (1).
+ */
+export function gradientConsistency(elevations: number[]): number {
+  if (elevations.length < 2) return 1
+  let totalAbsRise = 0
+  for (let i = 1; i < elevations.length; i++) {
+    totalAbsRise += Math.abs(elevations[i] - elevations[i - 1])
+  }
+  if (totalAbsRise === 0) return 1
+  const net = Math.abs(elevations[elevations.length - 1] - elevations[0])
+  return net / totalAbsRise
+}
+
 /** I/O glue — composition of tested parts; not unit-tested. */
 export async function fetchElevations(points: LatLon[]): Promise<number[]> {
   const results: number[] = []
