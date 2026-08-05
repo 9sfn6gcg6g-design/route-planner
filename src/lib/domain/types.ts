@@ -16,7 +16,7 @@ export interface TempoSession {
   /** Per-rep tempo block length (decision 14). reps: 1 is a single block. */
   tempoMeters: number
   recovery: RecoveryType
-  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  /** Optional target pace, seconds per km (decisions 13, 22). Workout metadata: never an engine input. */
   targetPaceSecondsPerKm?: number
 }
 
@@ -25,7 +25,7 @@ export interface IntervalsSession {
   reps: number
   repMeters: number
   recovery: RecoveryType
-  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  /** Optional target pace, seconds per km (decisions 13, 22). Workout metadata: never an engine input. */
   targetPaceSecondsPerKm?: number
 }
 
@@ -33,7 +33,7 @@ export interface HillsSession {
   type: 'hills'
   reps: number
   hillMeters: number
-  /** Optional target pace, seconds per km (decisions 13, 17). Workout metadata: never an engine input. */
+  /** Optional target pace, seconds per km (decisions 13, 22). Workout metadata: never an engine input. */
   targetPaceSecondsPerKm?: number
 }
 
@@ -52,7 +52,7 @@ export type SurfaceClass = 'paved' | 'any'
  * flow (crossingFree, turnSmoothness, turnDensity, nonRepetition), plus
  * decision 17's lengthFit for conversational sessions. Weights must sum to 1 so
  * quality lands in [0, 1]. Chosen in `domain` and read by `engine` type-only, so
- * the engine gains the profile but never sees pace (decisions 13, 17): a flow
+ * the engine gains the profile but never sees pace (decisions 13, 22): a flow
  * profile is terrain-shaping metadata, not pace.
  */
 export interface QualityWeights {
