@@ -4,14 +4,14 @@ import dynamic from 'next/dynamic'
 import type { Session } from '@/lib/domain/types'
 import type { WorkSegment } from '@/lib/engine/finder'
 import {
+  buildGpxDownload,
   crossingCaveat,
   formatKm,
   formatPace,
   formatQuality,
   sessionSummary,
   sessionTargetPace,
-} from '@/lib/results/format'
-import { buildGpxDownload } from '@/lib/results/gpx-download'
+} from '@/lib/results'
 import { SearchProgress } from './fields'
 import type { RunState } from './run-state'
 

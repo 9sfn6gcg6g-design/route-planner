@@ -6,7 +6,7 @@ import {
   parseSessionForm,
   type FieldErrors,
   type SessionFormValues,
-} from '@/lib/session-input/parse'
+} from '@/lib/session-input'
 import { Field, PaceField, SectionHead, inputClass } from './fields'
 
 /**

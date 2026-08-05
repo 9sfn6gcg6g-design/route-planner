@@ -2,8 +2,7 @@
 
 import type { LatLon } from '@/lib/engine/types'
 import { fetchWays } from '@/lib/engine/overpass'
-import type { PlanRouteDeps } from '@/lib/planner/plan-route'
-import { createDefaultElevationSampler } from '@/lib/planner/default-elevation-sampler'
+import { createDefaultElevationSampler, type PlanRouteDeps } from '@/lib/planner'
 import { useState } from 'react'
 import { SessionForm } from './session-form'
 import { StartPoint } from './start-point'
