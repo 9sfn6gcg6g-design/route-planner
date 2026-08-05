@@ -13,7 +13,7 @@ export interface GpxDownload {
 /**
  * Assemble a GPX download from a session and its chosen work stretch: the file
  * name, MIME type, and the GPX document — with the target pace in the
- * description when the session carries one (decision 17). Pure and testable;
+ * description when the session carries one (decision 22). Pure and testable;
  * the UI only wraps `contents` in a Blob and triggers the browser download.
  */
 export function buildGpxDownload(session: Session, points: LatLon[]): GpxDownload {

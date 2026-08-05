@@ -9,7 +9,7 @@ everything.
 
 | Term | Meaning |
 |------|---------|
-| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 17); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
+| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 22); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
 | **SessionPlan** | The compiled shape of a session: ordered phases + work pattern + computed total distance. Total distance is computed, never asked. |
 | **Phase** | One leg of the run: `warmup` / `work` / `cooldown`. Connectors (warmup, cooldown) carry `requirements: null` = any runnable terrain. |
 | **TerrainRequirements** | What the work phase demands of the ground: gradient bounds, junction density, quietness, surface, minimum uninterrupted stretch. Rep length *is* the uninterrupted-stretch requirement. |
@@ -138,24 +138,6 @@ everything.
     door-to-door loops remain the v1.1 assembly plan's job; this makes v1's
     ranked stretches honest for conversational sessions until it lands.
 
-17. **Target pace is optional (2026-07-30).** Amends decisions 13 and 14: the
-    runner-entered **target pace** on `tempo`, `intervals` and `hills` is now
-    **optional, not required**. `targetPaceSecondsPerKm` becomes an optional
-    field on those sessions; everything else in decision 13 stands — when
-    present it is still stored as **seconds per kilometre**, formatted
-    `mm:ss/km` only at the edge, surfaced in results and the GPX description,
-    and still **never** an engine input. The rationale: pace is workout
-    metadata, so demanding it just to generate a route is friction the runner
-    shouldn't have to clear — a session with no target still yields a route,
-    and the results/GPX simply omit the pace line (exactly as `easy`/`long`
-    already do). This shifts pace validation under decision 10: the compiler
-    still throws on a **present** non-finite or non-positive pace, but an
-    **absent** pace (`undefined`) is valid — it is no longer part of the
-    structural contract. At the form/API boundary, an empty pace field is
-    accepted rather than erroring "Required". Decision 14's `TempoSession`
-    shape reads `{ reps, tempoMeters, recovery, targetPaceSecondsPerKm? }`
-    accordingly.
-
 18. **Route quality is two families; flow is session-weighted (2026-07-31).**
     Amends decisions 15 and 16. A route's quality splits into two families: the
     **ground** it covers (quietness, gradient fit) and the **flow** of running it
@@ -174,7 +156,7 @@ everything.
     see decision 21). The **compiler picks the profile** from the session and
     passes it to the engine as part of what it already hands over
     (`TerrainRequirements`), so the engine gains the weight profile but still
-    **never sees pace** (decisions 13, 17 stand) — a flow profile is
+    **never sees pace** (decisions 13, 22 stand) — a flow profile is
     terrain-shaping metadata, not pace. Assembly changes too: decision 15's strict
     left → right → straight preference becomes **gentlest non-crossing continuation
     first**, with left-before-right kept only as a tiebreak between equally gentle
@@ -222,6 +204,28 @@ everything.
     the implementing plan**, not here. This promotes the existing
     `docs/superpowers/plans/2026-07-29-v1-door-to-door-loops.md`, which already
     chose this keyless-graph architecture.
+
+22. **Target pace is optional (2026-07-30).** *(Renumbered from 17 on
+    2026-08-05: two decisions were independently numbered 17. The
+    conversational-ranking decision keeps 17 — it is the one cited in
+    `engine/` — and this one moves to 22. Content is unchanged.)* Amends
+    decisions 13 and 14: the
+    runner-entered **target pace** on `tempo`, `intervals` and `hills` is now
+    **optional, not required**. `targetPaceSecondsPerKm` becomes an optional
+    field on those sessions; everything else in decision 13 stands — when
+    present it is still stored as **seconds per kilometre**, formatted
+    `mm:ss/km` only at the edge, surfaced in results and the GPX description,
+    and still **never** an engine input. The rationale: pace is workout
+    metadata, so demanding it just to generate a route is friction the runner
+    shouldn't have to clear — a session with no target still yields a route,
+    and the results/GPX simply omit the pace line (exactly as `easy`/`long`
+    already do). This shifts pace validation under decision 10: the compiler
+    still throws on a **present** non-finite or non-positive pace, but an
+    **absent** pace (`undefined`) is valid — it is no longer part of the
+    structural contract. At the form/API boundary, an empty pace field is
+    accepted rather than erroring "Required". Decision 14's `TempoSession`
+    shape reads `{ reps, tempoMeters, recovery, targetPaceSecondsPerKm? }`
+    accordingly.
 
 ---
 
