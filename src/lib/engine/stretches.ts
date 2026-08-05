@@ -23,7 +23,20 @@ export interface AssembleOptions {
   targetMeters?: number
   /** Hard cap on corridors stitched into one stretch, guarding runaway walks. */
   maxHops?: number
+  /** Continuation rule. 'turns' (decision 15, default) prefers left > right >
+   *  straight to dodge crossings — right for work stretches. 'flow' (decision
+   *  17, conversational) prefers the quietest sustained corridor, discounting
+   *  slivers, so a stretch follows a fragmented waterfront instead of turning
+   *  off it; crossings are still tallied for the caveat. */
+  continuation?: 'turns' | 'flow'
 }
+
+/** Below this length a corridor's quietness is discounted proportionally under
+ *  'flow', so an 11m sliver never outranks a real continuation. */
+const FLOW_SUSTAIN_METERS = 200
+
+const flowScore = (quietness: number, chain: Chain): number =>
+  quietness * Math.min(1, chain.lengthMeters / FLOW_SUSTAIN_METERS)
 
 /** Continuation preference: a left turn beats a right, a right beats straight. */
 const CLASS_RANK: Record<TurnClass, number> = { left: 0, right: 1, straight: 2, back: 3 }
@@ -59,7 +72,7 @@ function corridorKey(chain: Chain): string {
  * selection depends only on topology and signals, never on input order.
  */
 export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}): Stretch[] {
-  const { targetMeters = 0, maxHops = 12 } = options
+  const { targetMeters = 0, maxHops = 12, continuation = 'turns' } = options
   const corridors = buildChains(graph)
 
   const incidence = new Map<number, Chain[]>()
@@ -105,11 +118,14 @@ export function assembleStretches(graph: RunGraph, options: AssembleOptions = {}
         .filter((candidate) => candidate.turn !== 'back')
       if (candidates.length === 0) break
 
-      candidates.sort(
-        (a, b) =>
-          CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
-          b.quietness - a.quietness ||
-          corridorKey(a.chain).localeCompare(corridorKey(b.chain)),
+      candidates.sort((a, b) =>
+        continuation === 'flow'
+          ? flowScore(b.quietness, b.chain) - flowScore(a.quietness, a.chain) ||
+            CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
+            corridorKey(a.chain).localeCompare(corridorKey(b.chain))
+          : CLASS_RANK[a.turn] - CLASS_RANK[b.turn] ||
+            b.quietness - a.quietness ||
+            corridorKey(a.chain).localeCompare(corridorKey(b.chain)),
       )
       const chosen = candidates[0]
       if (chosen.turn === 'straight') crossings++

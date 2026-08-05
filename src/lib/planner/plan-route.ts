@@ -1,5 +1,6 @@
 import type {
   CompilerConfig,
+  PhasePlan,
   Session,
   SessionPlan,
   TerrainRequirements,
@@ -45,12 +46,12 @@ export interface RoutePlan {
 }
 
 /** The work phase always carries non-null requirements; guard defensively. */
-function workRequirements(plan: SessionPlan): TerrainRequirements {
+function workPhase(plan: SessionPlan): PhasePlan & { requirements: TerrainRequirements } {
   const work = plan.phases.find((phase) => phase.kind === 'work')
   if (!work || work.requirements === null) {
     throw new Error('compiled plan has no work phase with requirements')
   }
-  return work.requirements
+  return { ...work, requirements: work.requirements }
 }
 
 export async function planRoute(
@@ -62,14 +63,15 @@ export async function planRoute(
   const { searchRadiusMeters = 1200, maxResults, compilerConfig } = options
 
   const plan = compileSession(session, compilerConfig)
-  const requirements = workRequirements(plan)
+  const work = workPhase(plan)
 
   const ways = await deps.fetchWays(start, searchRadiusMeters)
   const graph = buildGraph(ways)
-  const segments = await findWorkSegments(graph, start, requirements, deps.sampleElevations, {
+  const segments = await findWorkSegments(graph, start, work.requirements, deps.sampleElevations, {
     maxDistanceFromStartMeters: searchRadiusMeters,
     maxResults,
+    workTargetMeters: work.targetMeters,
   })
 
-  return { plan, requirements, segments }
+  return { plan, requirements: work.requirements, segments }
 }
