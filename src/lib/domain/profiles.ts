@@ -7,7 +7,15 @@ import type { QualityWeights, Session, TerrainRequirements } from './types'
  * hairpins and constant navigation; non-repetition is ~0 since a rep session
  * repeats one segment by design (decision 21). Easy/long invert it: they relax
  * flow and weight non-repetition high, so the run varies its ground rather than
- * pounding an out-and-back. Every profile sums to 1.
+ * pounding an out-and-back.
+ *
+ * Easy/long additionally carry decision 17: `crossingFree` is **0** — a
+ * conversational session has no target pace for a kerb pause to break, so
+ * crossings are annotated, never scored — and `lengthFit` takes that weight,
+ * because their ground need is distance rather than uninterrupted length. Work
+ * sessions gate on `minUninterruptedMeters` instead and weight `lengthFit` 0.
+ *
+ * Every profile sums to 1. v1 constants, tunable.
  */
 const INTERVALS_WEIGHTS: QualityWeights = {
   quietness: 0.3,
@@ -16,6 +24,7 @@ const INTERVALS_WEIGHTS: QualityWeights = {
   turnSmoothness: 0.15,
   turnDensity: 0.1,
   nonRepetition: 0,
+  lengthFit: 0,
 }
 const TEMPO_WEIGHTS: QualityWeights = {
   quietness: 0.32,
@@ -24,6 +33,7 @@ const TEMPO_WEIGHTS: QualityWeights = {
   turnSmoothness: 0.15,
   turnDensity: 0.1,
   nonRepetition: 0,
+  lengthFit: 0,
 }
 const HILLS_WEIGHTS: QualityWeights = {
   quietness: 0.25,
@@ -32,22 +42,25 @@ const HILLS_WEIGHTS: QualityWeights = {
   turnSmoothness: 0.12,
   turnDensity: 0.08,
   nonRepetition: 0,
+  lengthFit: 0,
 }
 const EASY_WEIGHTS: QualityWeights = {
-  quietness: 0.35,
-  gradient: 0.15,
-  crossingFree: 0.1,
-  turnSmoothness: 0.05,
-  turnDensity: 0.05,
-  nonRepetition: 0.3,
+  quietness: 0.25,
+  gradient: 0.08,
+  crossingFree: 0,
+  turnSmoothness: 0.04,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
 }
 const LONG_WEIGHTS: QualityWeights = {
-  quietness: 0.4,
-  gradient: 0.12,
-  crossingFree: 0.1,
-  turnSmoothness: 0.04,
-  turnDensity: 0.04,
-  nonRepetition: 0.3,
+  quietness: 0.28,
+  gradient: 0.06,
+  crossingFree: 0,
+  turnSmoothness: 0.03,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
 }
 
 /**

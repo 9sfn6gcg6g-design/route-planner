@@ -5,7 +5,7 @@ import { segmentQuality } from './quality'
 describe('quality seam', () => {
   it('re-exports segmentQuality, returning a 0–1 score', () => {
     const q = segmentQuality({
-      minQuietness: 1,
+      quietness: 1,
       gradientPercent: 0,
       wantsClimb: false,
       crossings: 0,

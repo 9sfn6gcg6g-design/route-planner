@@ -12,10 +12,21 @@ export function chainMinQuietness(chain: Chain): number {
 }
 
 /**
+ * Length-weighted mean quietness (decision 17): the ranking statistic for
+ * conversational stretches, where one louder link doesn't define the run the
+ * way it breaks a rep. Hard gates keep using the minimum.
+ */
+export function chainMeanQuietness(chain: Chain): number {
+  const total = chain.edges.reduce((sum, e) => sum + e.lengthMeters, 0)
+  if (total === 0) return chainMinQuietness(chain)
+  return chain.edges.reduce((sum, e) => sum + e.quietness * e.lengthMeters, 0) / total
+}
+
+/**
  * The default quality blend (decision 16's original weights, extended to
- * decision 18's six dimensions with the flow additions zeroed). Used when a
- * caller supplies no per-session profile — session-specific blends live in
- * `domain/profiles.ts` and reach the finder on `TerrainRequirements`.
+ * decision 18's flow dimensions and decision 17's length-fit, both zeroed).
+ * Used when a caller supplies no per-session profile — session-specific blends
+ * live in `domain/profiles.ts` and reach the finder on `TerrainRequirements`.
  */
 export const DEFAULT_QUALITY_WEIGHTS: QualityWeights = {
   quietness: 0.45,
@@ -24,6 +35,7 @@ export const DEFAULT_QUALITY_WEIGHTS: QualityWeights = {
   turnSmoothness: 0,
   turnDensity: 0,
   nonRepetition: 0,
+  lengthFit: 0,
 }
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
@@ -34,14 +46,21 @@ const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
  * shape (`even` for tempo, `sustained` for hills), the base fit is scaled by
  * `consistency` (0–1), so a rolling stretch that only *averages* to target
  * loses to a steady one. `any` (easy/long) scores on the average alone.
+ *
+ * Conversational sessions (decision 17) read a gentler flatness curve, zero at
+ * 10% rather than 5%: rolling ground is fine at conversational effort, and
+ * terrain-tile noise must not crater a long stretch's score.
  */
 function gradientFit(
   gradientPercent: number,
   wantsClimb: boolean,
   shape: GradientShape,
   consistency: number,
+  conversational: boolean,
 ): number {
-  const base = wantsClimb ? clamp01(gradientPercent / 10) : clamp01(1 - gradientPercent / 5)
+  const base = wantsClimb
+    ? clamp01(gradientPercent / 10)
+    : clamp01(1 - gradientPercent / (conversational ? 10 : 5))
   return shape === 'any' ? base : base * clamp01(consistency)
 }
 
@@ -55,22 +74,32 @@ function crossingFreeness(crossings: number): number {
 }
 
 /**
- * The single calibrated 0–1 segment quality (decisions 16, 18): a weighted
+ * The single calibrated 0–1 segment quality (decisions 16, 17, 18): a weighted
  * blend of two families — ground (quietness, gradient fit) and flow
- * (crossing-freeness, turn-smoothness, turn-density, non-repetition). The blend
- * `weights` come from the session profile (`domain/profiles.ts`); omitted, they
- * fall back to `DEFAULT_QUALITY_WEIGHTS`. The flow inputs default to 1 (a
- * perfectly flowing stretch) so a caller that has not computed one yet — or a
- * single stretch that repeats nothing — is scored as it was before that
- * dimension existed. This is both what the runner sees ("Quality 87%") and what
- * the finder ranks by; it orders segments that already passed the hard
+ * (crossing-freeness, turn-smoothness, turn-density, non-repetition) — plus
+ * decision 17's length-fit for conversational stretches. The blend `weights`
+ * come from the session profile (`domain/profiles.ts`); omitted, they fall back
+ * to `DEFAULT_QUALITY_WEIGHTS`. The flow inputs default to 1 (a perfectly
+ * flowing stretch) so a caller that has not computed one yet — or a single
+ * stretch that repeats nothing — is scored as it was before that dimension
+ * existed. This is both what the runner sees ("Quality 87%") and what the finder
+ * ranks by; it orders segments that already passed the hard
  * `TerrainRequirements` gates — it never rejects.
+ *
+ * Conversational sessions carry no crossing penalty (decision 17); that is
+ * expressed as a zero `crossingFree` weight in their profile, not as a branch
+ * here — so a new session blend never needs this function reopened.
  */
 export function segmentQuality(params: {
-  minQuietness: number
+  /** The caller's quietness statistic: minimum for work stretches, length-weighted mean for conversational (decision 17). */
+  quietness: number
   gradientPercent: number
   wantsClimb: boolean
   crossings: number
+  /** Assembled stretch length; only read when `conversationalTargetMeters` is set. */
+  lengthMeters?: number
+  /** Capped work-phase target for conversational sessions (decision 17); null/omitted = work stretch. */
+  conversationalTargetMeters?: number | null
   weights?: QualityWeights
   gradientShape?: GradientShape
   /** 0–1, 1 = a steady/sustained climb; scales gradient fit when shape ≠ any. */
@@ -83,19 +112,25 @@ export function segmentQuality(params: {
   nonRepetition?: number
 }): number {
   const w = params.weights ?? DEFAULT_QUALITY_WEIGHTS
+  const target = params.conversationalTargetMeters ?? null
+  // A work stretch has no length target, so length-fit is a no-op 1 — its
+  // weight is 0 in every work profile anyway.
+  const lengthFit = target !== null ? clamp01((params.lengthMeters ?? 0) / target) : 1
   return (
-    w.quietness * clamp01(params.minQuietness) +
+    w.quietness * clamp01(params.quietness) +
     w.gradient *
       gradientFit(
         params.gradientPercent,
         params.wantsClimb,
         params.gradientShape ?? 'any',
         params.gradientConsistency ?? 1,
+        target !== null,
       ) +
     w.crossingFree * crossingFreeness(params.crossings) +
     w.turnSmoothness * clamp01(params.turnSmoothness ?? 1) +
     w.turnDensity * clamp01(params.turnDensity ?? 1) +
-    w.nonRepetition * clamp01(params.nonRepetition ?? 1)
+    w.nonRepetition * clamp01(params.nonRepetition ?? 1) +
+    w.lengthFit * lengthFit
   )
 }
 
