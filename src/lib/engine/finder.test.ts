@@ -11,6 +11,7 @@ const structuredWeights: QualityWeights = {
   turnSmoothness: 0.15,
   turnDensity: 0.1,
   nonRepetition: 0,
+  lengthFit: 0,
 }
 
 /** A straight way heading north; step 0.001 lat ≈ 111m per hop. */
@@ -55,7 +56,7 @@ const hills: TerrainRequirements = {
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
-  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0 },
+  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0, lengthFit: 0 },
   gradientShape: 'sustained',
 }
 
@@ -174,6 +175,100 @@ function pointWay(id: number, nodeIds: number[], pts: Array<[number, number]>): 
     points: pts.map(([lat, lon]) => ({ lat, lon })),
   }
 }
+
+const easy: TerrainRequirements = {
+  maxAvgGradientPercent: 6,
+  minAvgGradientPercent: null,
+  maxJunctionsPerKm: 12,
+  minQuietness: 0.4,
+  surface: 'any',
+  minUninterruptedMeters: null,
+  qualityWeights: {
+    quietness: 0.25,
+    gradient: 0.08,
+    crossingFree: 0,
+    turnSmoothness: 0.04,
+    turnDensity: 0.03,
+    nonRepetition: 0.25,
+    lengthFit: 0.35,
+  },
+  gradientShape: 'any',
+}
+
+describe('findWorkSegments — conversational sessions (decision 17)', () => {
+  it('filters degenerate fragments below the conversational floor', async () => {
+    const graph = buildGraph([straightWay(1, 51.45, -2.58, 3, 'residential', 'asphalt')]) // ~222m
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+    })
+    expect(results).toHaveLength(0)
+  })
+
+  it('extends conversational stretches toward the work target', async () => {
+    // A→Jn is ~556m and Jn is a real junction (degree 3), so corridors
+    // terminate there; only decision-15 assembly across the turn goes further.
+    const A: [number, number] = [51.45, -2.58]
+    const Jn: [number, number] = [51.455, -2.58]
+    const W: [number, number] = [51.455, -2.587] // left turn
+    const E: [number, number] = [51.455, -2.573] // right turn
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, Jn]),
+      pointWay(2, [20, 30], [Jn, W]),
+      pointWay(3, [20, 40], [Jn, E]),
+    ])
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+    })
+    expect(Math.max(...results.map((r) => r.lengthMeters))).toBeGreaterThan(700)
+  })
+
+  it('ranks a long stretch above a shorter quieter one', async () => {
+    const graph = buildGraph([
+      straightWay(1, 51.45, -2.58, 28, 'residential', 'asphalt'), // ~3000m, quietness 0.7
+      straightWay(2, 51.45, -2.577, 5, 'cycleway', 'asphalt'), // ~444m, quietness 0.9
+    ])
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+      maxDistanceFromStartMeters: 4000,
+    })
+    expect(results.length).toBeGreaterThan(1)
+    expect(results[0].lengthMeters).toBeGreaterThan(2000)
+  })
+
+  it('follows sustained paths instead of sliver turns (flow continuation)', async () => {
+    const A: [number, number] = [51.45, -2.588]
+    const J: [number, number] = [51.45, -2.58]
+    const NearN: [number, number] = [51.4501, -2.58] // ~11m sliver left turn
+    const E: [number, number] = [51.45, -2.572] // long straight continuation
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, J]),
+      pointWay(2, [20, 30], [J, NearN]),
+      pointWay(3, [20, 50], [J, E]),
+    ])
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+    })
+    expect(Math.max(...results.map((r) => r.lengthMeters))).toBeGreaterThan(1000)
+  })
+
+  it('still reports crossings as an annotation', async () => {
+    // Straight-on is the only usable continuation at a degree-3 junction: a
+    // crossing — tolerated for easy, but still tallied for the UI caveat.
+    const A: [number, number] = [51.45, -2.58]
+    const Jn: [number, number] = [51.455, -2.58]
+    const N: [number, number] = [51.46, -2.58] // straight on (a crossing)
+    const Bk: [number, number] = [51.45, -2.582] // doubles back — never taken
+    const graph = buildGraph([
+      pointWay(1, [10, 20], [A, Jn]),
+      pointWay(2, [20, 50], [Jn, N]),
+      pointWay(3, [20, 60], [Jn, Bk]),
+    ])
+    const results = await findWorkSegments(graph, start, easy, flatSampler, {
+      workTargetMeters: 10000,
+    })
+    expect(results[0].crossings).toBe(1)
+  })
+})
 
 describe('findWorkSegments — turn-aware stretches (decision 15)', () => {
   // A→J heads north (~556m), short of the 800m interval floor on its own.

@@ -71,7 +71,7 @@ describe('sessionTargetPace', () => {
     expect(sessionTargetPace(intervals)).toBe(270)
   })
 
-  it('is null when a structured session omits the pace (decision 17)', () => {
+  it('is null when a structured session omits the pace (decision 22)', () => {
     const noPace: Session = { type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog' }
     expect(sessionTargetPace(noPace)).toBeNull()
   })

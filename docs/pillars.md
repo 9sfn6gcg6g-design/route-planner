@@ -34,6 +34,6 @@ behaviour is pinned):
   `domain` type-only; `planner` is the sole layer that composes *functions* from
   both. Barrels re-export only — they never add a cross-layer import.
 - **Units** (AGENTS.md): meters, percent, seconds/km, 0–1 scores; convert at the edges.
-- **Pace is metadata** (decisions 13, 17): it rides on the `Session`, shows in
+- **Pace is metadata** (decisions 13, 22): it rides on the `Session`, shows in
   results and the GPX, and is **never** an engine input — pillar 3 and the finder
   never see it.

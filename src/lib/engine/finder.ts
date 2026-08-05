@@ -1,12 +1,22 @@
 import type { TerrainRequirements } from '@/lib/domain/types'
 import type { Chain, LatLon, RunGraph } from './types'
 import { assembleStretches } from './stretches'
-import { evaluateChain, segmentQuality } from './evaluate'
+import { chainMeanQuietness, evaluateChain, segmentQuality } from './evaluate'
 import { avgAbsGradientPercent, gradientConsistency } from './elevation'
 import { cumulativeMeters, haversineMeters, turnFlowScores } from './geo'
 import { resamplePoints } from './resample'
 
 export type ElevationSampler = (points: LatLon[]) => Promise<number[]>
+
+/**
+ * Decision 17: conversational (easy/long) assembly and ranking constants.
+ * Tunable. The cap keeps the length-fit denominator inside what a bounded
+ * search disc can actually hold; the floor keeps degenerate fragments (the
+ * "0.0 km" courtyard loop) out of results entirely.
+ */
+const CONVERSATIONAL_STRETCH_CAP_METERS = 3000
+const MIN_CONVERSATIONAL_STRETCH_METERS = 400
+const CONVERSATIONAL_MAX_HOPS = 30
 
 export interface FindOptions {
   /** Straight-line prefilter radius from the start point. Default 2000. */
@@ -14,6 +24,9 @@ export interface FindOptions {
   maxResults?: number
   /** Spacing for elevation sampling. Default 40. */
   resampleIntervalMeters?: number
+  /** Compiled work-phase length (meters); drives conversational assembly and
+   *  length-fit (decision 17). Ignored for work sessions. */
+  workTargetMeters?: number
 }
 
 export interface WorkSegment {
@@ -63,17 +76,39 @@ export async function findWorkSegments(
     resampleIntervalMeters = 40,
   } = options
 
+  // Conversational sessions (decision 17): no uninterrupted-length requirement
+  // means the session tolerates crossings; assemble toward its distance and
+  // rank by length-fit instead of crossing-freeness.
+  const conversationalTargetMeters =
+    requirements.minUninterruptedMeters === null
+      ? Math.min(
+          options.workTargetMeters ?? CONVERSATIONAL_STRETCH_CAP_METERS,
+          CONVERSATIONAL_STRETCH_CAP_METERS,
+        )
+      : null
+  const stretchOptions =
+    conversationalTargetMeters !== null
+      ? {
+          targetMeters: conversationalTargetMeters,
+          maxHops: CONVERSATIONAL_MAX_HOPS,
+          continuation: 'flow' as const,
+        }
+      : { targetMeters: requirements.minUninterruptedMeters ?? 0 }
+
   const candidates: Array<{
     chain: Chain
     distance: number
     crossings: number
     turnAngles: number[]
   }> = []
-  for (const { chain, crossings, turnAngles } of assembleStretches(graph, {
-    targetMeters: requirements.minUninterruptedMeters ?? 0,
-  })) {
+  for (const { chain, crossings, turnAngles } of assembleStretches(graph, stretchOptions)) {
     const distance = distanceFromStart(start, chain)
     if (distance > maxDistanceFromStartMeters) continue
+    if (
+      conversationalTargetMeters !== null &&
+      chain.lengthMeters < MIN_CONVERSATIONAL_STRETCH_METERS
+    )
+      continue
     if (!evaluateChain(chain, requirements, null).passes) continue
     candidates.push({ chain, distance, crossings, turnAngles })
   }
@@ -97,10 +132,15 @@ export async function findWorkSegments(
       if (!evaluation.passes) continue
       const { turnSmoothness, turnDensity } = turnFlowScores(turnAngles, chain.lengthMeters)
       const quality = segmentQuality({
-        minQuietness: evaluation.minQuietness,
+        quietness:
+          conversationalTargetMeters !== null
+            ? chainMeanQuietness(chain)
+            : evaluation.minQuietness,
         gradientPercent: gradient,
         wantsClimb: requirements.minAvgGradientPercent !== null,
         crossings,
+        lengthMeters: chain.lengthMeters,
+        conversationalTargetMeters,
         weights: requirements.qualityWeights,
         gradientShape: requirements.gradientShape,
         gradientConsistency: gradientConsistency(slice),

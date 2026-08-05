@@ -9,7 +9,7 @@ everything.
 
 | Term | Meaning |
 |------|---------|
-| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 17); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
+| **Session** | What the runner plans to do: one of `easy`, `long`, `tempo`, `intervals`, `hills`, each with a minimal type-specific form. Structured sessions (`tempo`, `intervals`, `hills`) may also carry an **optional** runner-entered **target pace** (decisions 13, 22); `tempo` carries reps + recovery like intervals (decision 14). `easy`/`long` stay conversational (no pace). |
 | **SessionPlan** | The compiled shape of a session: ordered phases + work pattern + computed total distance. Total distance is computed, never asked. |
 | **Phase** | One leg of the run: `warmup` / `work` / `cooldown`. Connectors (warmup, cooldown) carry `requirements: null` = any runnable terrain. |
 | **TerrainRequirements** | What the work phase demands of the ground: gradient bounds, junction density, quietness, surface, minimum uninterrupted stretch. Rep length *is* the uninterrupted-stretch requirement. |
@@ -80,7 +80,9 @@ everything.
     of failing outright. Applies to all work-stretch finding (tempo,
     intervals, hills). The precise junction geometry — how left/right/straight
     are decided, and which highway classes count as a "major" crossing — is
-    fixed in the implementing plan, not here.
+    fixed in the implementing plan, not here. *(Scoped 2026-07-30 by decision
+    17: the crossing cost applies to work stretches only; conversational
+    easy/long sessions annotate crossings without ranking penalty.)*
 16. **A segment has one quality score, 0–1, shown as a percentage
     (2026-07-30).** The finder ranks candidate work segments, and the UI
     presents them, by a single calibrated **quality** score — a weighted blend
@@ -100,25 +102,41 @@ everything.
     roads", shown alongside the score) are unchanged. The blend weights are v1
     constants in `engine/evaluate.ts`, tunable, and are the natural home for
     future signals (decision 7) — a new signal slots in as another weighted
-    dimension without reshaping the interface.
-
-17. **Target pace is optional (2026-07-30).** Amends decisions 13 and 14: the
-    runner-entered **target pace** on `tempo`, `intervals` and `hills` is now
-    **optional, not required**. `targetPaceSecondsPerKm` becomes an optional
-    field on those sessions; everything else in decision 13 stands — when
-    present it is still stored as **seconds per kilometre**, formatted
-    `mm:ss/km` only at the edge, surfaced in results and the GPX description,
-    and still **never** an engine input. The rationale: pace is workout
-    metadata, so demanding it just to generate a route is friction the runner
-    shouldn't have to clear — a session with no target still yields a route,
-    and the results/GPX simply omit the pace line (exactly as `easy`/`long`
-    already do). This shifts pace validation under decision 10: the compiler
-    still throws on a **present** non-finite or non-positive pace, but an
-    **absent** pace (`undefined`) is valid — it is no longer part of the
-    structural contract. At the form/API boundary, an empty pace field is
-    accepted rather than erroring "Required". Decision 14's `TempoSession`
-    shape reads `{ reps, tempoMeters, recovery, targetPaceSecondsPerKm? }`
-    accordingly.
+    dimension without reshaping the interface. *(Amended 2026-07-30 by
+    decision 17: these weights are the work-stretch blend; conversational
+    sessions swap crossing-freeness for length-fit.)*
+17. **Conversational sessions rank without crossing cost (2026-07-30).** Scopes
+    decisions 15/16. Their crossing economics price a crossing as a *forced
+    stop* — a pace cost, which is a work concept; decision 15 already scoped
+    itself to work-stretch finding (tempo, intervals, hills). `easy`/`long`
+    are **conversational** (decision 13): there is no target pace for a kerb
+    pause to break, so for these sessions crossings carry **no ranking
+    penalty**. They remain *annotated* (decision 15's "crosses N roads"
+    caveat) as information, never as score. A conversational session's ground
+    need is **distance, not uninterrupted length** — `minUninterruptedMeters:
+    null` in `TerrainRequirements` is the marker (null now *means*
+    conversational, not merely "no floor"). Engine consequences: (a) stretch
+    assembly extends conversational stretches toward the session's work-phase
+    distance, capped by realistic search reach, instead of not extending at
+    all — and it extends by **flow**, preferring the quietest *sustained*
+    continuation (sliver corridors discounted) rather than decision 15's
+    turn-before-crossing order, which exists to dodge crossings that
+    conversational sessions tolerate (observed at BS1 5AU: the turn order
+    walked off the harbourside quay onto a 7 m fragment); (b) quality
+    (decision 16) for conversational stretches blends quietness (0.45 — the
+    length-weighted **mean**, not the minimum: one louder link doesn't define
+    an easy run the way it breaks a rep), gradient fit (0.15, on a gentler
+    curve reaching zero at 10% — rolling ground is acceptable at
+    conversational effort, and the work flatness curve let terrain-tile noise
+    crush 2 km candidates at BS1 5AU) and **length-fit** (0.40 — stretch
+    length over the capped target, clamped to 1), replacing crossing-freeness;
+    the hard gates (decision 16) are untouched and still use minimum
+    quietness;
+    (c) a light length floor keeps degenerate fragments (the "0.0 km"
+    courtyard loop) out of results entirely. Cap, floor and weights are
+    tunable v1 constants in `engine/` alongside decision 16's. Distance-matched
+    door-to-door loops remain the v1.1 assembly plan's job; this makes v1's
+    ranked stretches honest for conversational sessions until it lands.
 
 18. **Route quality is two families; flow is session-weighted (2026-07-31).**
     Amends decisions 15 and 16. A route's quality splits into two families: the
@@ -138,7 +156,7 @@ everything.
     see decision 21). The **compiler picks the profile** from the session and
     passes it to the engine as part of what it already hands over
     (`TerrainRequirements`), so the engine gains the weight profile but still
-    **never sees pace** (decisions 13, 17 stand) — a flow profile is
+    **never sees pace** (decisions 13, 22 stand) — a flow profile is
     terrain-shaping metadata, not pace. Assembly changes too: decision 15's strict
     left → right → straight preference becomes **gentlest non-crossing continuation
     first**, with left-before-right kept only as a tiebreak between equally gentle
@@ -186,6 +204,28 @@ everything.
     the implementing plan**, not here. This promotes the existing
     `docs/superpowers/plans/2026-07-29-v1-door-to-door-loops.md`, which already
     chose this keyless-graph architecture.
+
+22. **Target pace is optional (2026-07-30).** *(Renumbered from 17 on
+    2026-08-05: two decisions were independently numbered 17. The
+    conversational-ranking decision keeps 17 — it is the one cited in
+    `engine/` — and this one moves to 22. Content is unchanged.)* Amends
+    decisions 13 and 14: the
+    runner-entered **target pace** on `tempo`, `intervals` and `hills` is now
+    **optional, not required**. `targetPaceSecondsPerKm` becomes an optional
+    field on those sessions; everything else in decision 13 stands — when
+    present it is still stored as **seconds per kilometre**, formatted
+    `mm:ss/km` only at the edge, surfaced in results and the GPX description,
+    and still **never** an engine input. The rationale: pace is workout
+    metadata, so demanding it just to generate a route is friction the runner
+    shouldn't have to clear — a session with no target still yields a route,
+    and the results/GPX simply omit the pace line (exactly as `easy`/`long`
+    already do). This shifts pace validation under decision 10: the compiler
+    still throws on a **present** non-finite or non-positive pace, but an
+    **absent** pace (`undefined`) is valid — it is no longer part of the
+    structural contract. At the form/API boundary, an empty pace field is
+    accepted rather than erroring "Required". Decision 14's `TempoSession`
+    shape reads `{ reps, tempoMeters, recovery, targetPaceSecondsPerKm? }`
+    accordingly.
 
 ---
 

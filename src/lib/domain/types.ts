@@ -49,10 +49,11 @@ export type SurfaceClass = 'paved' | 'any'
 /**
  * How much each quality dimension counts toward the single 0–1 score, per
  * session type (decision 18). Two families: ground (quietness, gradient) and
- * flow (crossingFree, turnSmoothness, turnDensity, nonRepetition). Weights must
- * sum to 1 so quality lands in [0, 1]. Chosen in `domain` and read by `engine`
- * type-only, so the engine gains the profile but never sees pace (decisions 13,
- * 17): a flow profile is terrain-shaping metadata, not pace.
+ * flow (crossingFree, turnSmoothness, turnDensity, nonRepetition), plus
+ * decision 17's lengthFit for conversational sessions. Weights must sum to 1 so
+ * quality lands in [0, 1]. Chosen in `domain` and read by `engine` type-only, so
+ * the engine gains the profile but never sees pace (decisions 13, 17): a flow
+ * profile is terrain-shaping metadata, not pace.
  */
 export interface QualityWeights {
   quietness: number
@@ -61,6 +62,9 @@ export interface QualityWeights {
   turnSmoothness: number
   turnDensity: number
   nonRepetition: number
+  /** Stretch length over the capped work-phase target (decision 17). Work
+   *  sessions gate on `minUninterruptedMeters` instead and weight this 0. */
+  lengthFit: number
 }
 
 /**

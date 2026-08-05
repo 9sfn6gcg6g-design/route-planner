@@ -71,13 +71,13 @@ export async function planRoute(
 
   const plan = compileSession(session, compilerConfig)
   const work = workPhase(plan)
-  const requirements = work.requirements
 
   const { ways, barrierNodeIds } = await deps.fetchWays(start, searchRadiusMeters)
   const graph = buildGraph(ways, barrierNodeIds)
-  const segments = await findWorkSegments(graph, start, requirements, deps.sampleElevations, {
+  const segments = await findWorkSegments(graph, start, work.requirements, deps.sampleElevations, {
     maxDistanceFromStartMeters: searchRadiusMeters,
     maxResults,
+    workTargetMeters: work.targetMeters,
   })
 
   // Turn each ranked stretch into a runnable door-to-door loop (decision 21):
@@ -92,5 +92,5 @@ export async function planRoute(
     ),
   )
 
-  return { plan, requirements, segments, routes }
+  return { plan, requirements: work.requirements, segments, routes }
 }

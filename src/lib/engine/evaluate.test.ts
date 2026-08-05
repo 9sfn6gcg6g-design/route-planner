@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { QualityWeights, TerrainRequirements } from '@/lib/domain/types'
-import { chainMinQuietness, DEFAULT_QUALITY_WEIGHTS, evaluateChain, segmentQuality } from './evaluate'
+import {
+  chainMeanQuietness,
+  chainMinQuietness,
+  DEFAULT_QUALITY_WEIGHTS,
+  evaluateChain,
+  segmentQuality,
+} from './evaluate'
 import type { Chain, RunEdge, SurfaceKind } from './types'
 
 /** A structured profile: flow (crossings/turns) weighted high, repetition ~0. */
@@ -11,15 +17,21 @@ const structuredWeights: QualityWeights = {
   turnSmoothness: 0.15,
   turnDensity: 0.1,
   nonRepetition: 0,
+  lengthFit: 0,
 }
-/** An easy profile: flow relaxed, non-repetition weighted high. */
+/**
+ * An easy profile: flow relaxed, non-repetition weighted high (decision 18),
+ * and — decision 17 — no crossing penalty at all, with that weight moved to
+ * length-fit. Mirrors `EASY_WEIGHTS` in `domain/profiles.ts`.
+ */
 const easyWeights: QualityWeights = {
-  quietness: 0.35,
-  gradient: 0.15,
-  crossingFree: 0.1,
-  turnSmoothness: 0.05,
-  turnDensity: 0.05,
-  nonRepetition: 0.3,
+  quietness: 0.25,
+  gradient: 0.08,
+  crossingFree: 0,
+  turnSmoothness: 0.04,
+  turnDensity: 0.03,
+  nonRepetition: 0.25,
+  lengthFit: 0.35,
 }
 
 function edge(lengthMeters: number, quietness: number, surface: SurfaceKind): RunEdge {
@@ -68,13 +80,23 @@ const hills: TerrainRequirements = {
   minQuietness: 0.5,
   surface: 'any',
   minUninterruptedMeters: 300,
-  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0 },
+  qualityWeights: { quietness: 0.25, gradient: 0.35, crossingFree: 0.2, turnSmoothness: 0.12, turnDensity: 0.08, nonRepetition: 0, lengthFit: 0 },
   gradientShape: 'sustained',
 }
 
 describe('chainMinQuietness', () => {
   it('is the minimum over edges', () => {
     expect(chainMinQuietness(chain([edge(100, 0.9, 'paved'), edge(100, 0.6, 'paved')]))).toBe(0.6)
+  })
+})
+
+describe('chainMeanQuietness (decision 17)', () => {
+  it('is the length-weighted mean over edges', () => {
+    // 300m at 0.9 and 100m at 0.5 → (0.9*300 + 0.5*100) / 400 = 0.8
+    expect(chainMeanQuietness(chain([edge(300, 0.9, 'paved'), edge(100, 0.5, 'paved')]))).toBeCloseTo(
+      0.8,
+      10,
+    )
   })
 })
 
@@ -129,7 +151,14 @@ describe('evaluateChain — gradient checks', () => {
 })
 
 describe('segmentQuality (decision 16)', () => {
-  const base = { minQuietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+  const base = {
+    quietness: 0.9,
+    gradientPercent: 0.3,
+    wantsClimb: false,
+    crossings: 0,
+    lengthMeters: 1000,
+    conversationalTargetMeters: null,
+  }
 
   it('is a calibrated 0–1 score', () => {
     const q = segmentQuality(base)
@@ -138,8 +167,8 @@ describe('segmentQuality (decision 16)', () => {
   })
 
   it('prefers quieter stretches, all else equal', () => {
-    expect(segmentQuality({ ...base, minQuietness: 0.9 })).toBeGreaterThan(
-      segmentQuality({ ...base, minQuietness: 0.7 }),
+    expect(segmentQuality({ ...base, quietness: 0.9 })).toBeGreaterThan(
+      segmentQuality({ ...base, quietness: 0.7 }),
     )
   })
 
@@ -147,7 +176,13 @@ describe('segmentQuality (decision 16)', () => {
     expect(segmentQuality({ ...base, gradientPercent: 0.2 })).toBeGreaterThan(
       segmentQuality({ ...base, gradientPercent: 0.9 }),
     )
-    const climb = { minQuietness: 0.9, wantsClimb: true, crossings: 0 }
+    const climb = {
+      quietness: 0.9,
+      wantsClimb: true,
+      crossings: 0,
+      lengthMeters: 1000,
+      conversationalTargetMeters: null,
+    }
     expect(segmentQuality({ ...climb, gradientPercent: 9 })).toBeGreaterThan(
       segmentQuality({ ...climb, gradientPercent: 5 }),
     )
@@ -164,7 +199,7 @@ describe('segmentQuality (decision 16)', () => {
 })
 
 describe('decision 18: flow is session-weighted', () => {
-  const base = { minQuietness: 0.8, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+  const base = { quietness: 0.8, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
 
   it('omitting weights equals the default profile, which sums to 1', () => {
     const sum = Object.values(DEFAULT_QUALITY_WEIGHTS).reduce((a, b) => a + b, 0)
@@ -204,10 +239,12 @@ describe('decision 18: flow is session-weighted', () => {
 
   it('every session profile stays in [0, 1] at its worst inputs', () => {
     const worst = {
-      minQuietness: 0,
+      quietness: 0,
       gradientPercent: 20,
       wantsClimb: false,
       crossings: 5,
+      lengthMeters: 0,
+      conversationalTargetMeters: 3000,
       turnSmoothness: 0,
       turnDensity: 0,
       nonRepetition: 0,
@@ -221,7 +258,7 @@ describe('decision 18: flow is session-weighted', () => {
 })
 
 describe('decision 19: gradient shape scales fit', () => {
-  const climb = { minQuietness: 0.9, gradientPercent: 8, wantsClimb: true, crossings: 0 }
+  const climb = { quietness: 0.9, gradientPercent: 8, wantsClimb: true, crossings: 0 }
 
   it('a rolling climb (low consistency) scores below a sustained one for hills', () => {
     const sustained = segmentQuality({ ...climb, gradientShape: 'sustained', gradientConsistency: 1 })
@@ -230,10 +267,74 @@ describe('decision 19: gradient shape scales fit', () => {
   })
 
   it('shape "any" ignores consistency (easy/long score on the average alone)', () => {
-    const flat = { minQuietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
+    const flat = { quietness: 0.9, gradientPercent: 0.3, wantsClimb: false, crossings: 0 }
     expect(segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 0.2 })).toBeCloseTo(
       segmentQuality({ ...flat, gradientShape: 'any', gradientConsistency: 1 }),
     )
+  })
+})
+
+// Decision 17's conversational behaviour now rides on the easy/long weight
+// profile (decision 18) rather than a branch inside segmentQuality, so these
+// pass the profile explicitly — that is what the finder does via
+// `TerrainRequirements.qualityWeights`.
+describe('segmentQuality — conversational sessions (decision 17)', () => {
+  const conv = {
+    quietness: 0.9,
+    gradientPercent: 0.3,
+    wantsClimb: false,
+    crossings: 0,
+    lengthMeters: 2000,
+    conversationalTargetMeters: 3000,
+    weights: easyWeights,
+  }
+
+  it('crossings carry no ranking penalty', () => {
+    expect(segmentQuality({ ...conv, crossings: 3 })).toBe(segmentQuality(conv))
+  })
+
+  it('rewards stretches nearer the target length', () => {
+    expect(segmentQuality({ ...conv, lengthMeters: 2500 })).toBeGreaterThan(
+      segmentQuality({ ...conv, lengthMeters: 500 }),
+    )
+  })
+
+  it('a long ordinary stretch outranks a tiny perfect loop', () => {
+    const tinyPerfectLoop = { ...conv, quietness: 1, gradientPercent: 0, lengthMeters: 40 }
+    const decentLongStretch = {
+      ...conv,
+      quietness: 0.7,
+      gradientPercent: 1,
+      lengthMeters: 2800,
+      crossings: 2,
+    }
+    expect(segmentQuality(decentLongStretch)).toBeGreaterThan(segmentQuality(tinyPerfectLoop))
+  })
+
+  it('length-fit saturates at the target', () => {
+    expect(segmentQuality({ ...conv, lengthMeters: 6000 })).toBe(
+      segmentQuality({ ...conv, lengthMeters: 3000 }),
+    )
+  })
+
+  it('judges gradient on a gentler curve than work stretches', () => {
+    // At 4.3% the work flatness curve is nearly zero; a conversational run
+    // barely notices rolling ground (terrain-tile noise must not crater it).
+    const work = { ...conv, conversationalTargetMeters: null, weights: structuredWeights }
+    const workDrop =
+      segmentQuality({ ...work, gradientPercent: 0 }) -
+      segmentQuality({ ...work, gradientPercent: 4.3 })
+    const convDrop =
+      segmentQuality({ ...conv, gradientPercent: 0 }) -
+      segmentQuality({ ...conv, gradientPercent: 4.3 })
+    expect(convDrop).toBeLessThan(workDrop / 2)
+  })
+
+  it('a long rolling stretch outranks a short flat one', () => {
+    // The live BS1 5AU failure: 2067m at 4.3% ranked below 933m at 0.8%.
+    const long = { ...conv, quietness: 0.7, gradientPercent: 4.3, lengthMeters: 2067 }
+    const short = { ...conv, quietness: 0.9, gradientPercent: 0.8, lengthMeters: 933 }
+    expect(segmentQuality(long)).toBeGreaterThan(segmentQuality(short))
   })
 })
 

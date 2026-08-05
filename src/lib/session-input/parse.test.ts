@@ -142,7 +142,7 @@ describe('parseSessionForm', () => {
     })
   })
 
-  it('accepts an empty pace and omits it (optional, decision 17)', () => {
+  it('accepts an empty pace and omits it (optional, decision 22)', () => {
     expect(parseSessionForm({ ...base, type: 'tempo', tempoKm: '5', reps: '1', targetPace: '' })).toEqual({
       ok: true,
       session: { type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog' },
