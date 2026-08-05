@@ -41,6 +41,17 @@ export function gpxFileName(session: Session): string {
   return `route-${sessionSlug(session)}.gpx`
 }
 
+/**
+ * The session's target pace in seconds/km, or null when there is none: easy/long
+ * are conversational, and structured sessions may omit it (decisions 13, 17).
+ * Pace is workout metadata surfaced in results and the GPX — never an engine input.
+ */
+export function sessionTargetPace(session: Session): number | null {
+  return session.type === 'easy' || session.type === 'long'
+    ? null
+    : session.targetPaceSecondsPerKm ?? null
+}
+
 /** Meters → "8.0 km". */
 export function formatKm(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`

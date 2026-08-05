@@ -9,6 +9,7 @@ import {
   formatQuality,
   gpxFileName,
   sessionSummary,
+  sessionTargetPace,
 } from './format'
 
 const easy: Session = { type: 'easy', distanceMeters: 8000 }
@@ -57,6 +58,22 @@ describe('gpxFileName', () => {
     expect(gpxFileName(tempoReps)).toBe('route-3x2km-tempo.gpx')
     expect(gpxFileName(intervals)).toBe('route-6x800m-intervals.gpx')
     expect(gpxFileName(hills)).toBe('route-8x150m-hills.gpx')
+  })
+})
+
+describe('sessionTargetPace', () => {
+  it('is null for conversational easy/long sessions', () => {
+    expect(sessionTargetPace(easy)).toBeNull()
+  })
+
+  it('reads the target pace off a structured session that carries one', () => {
+    expect(sessionTargetPace(tempo)).toBe(300)
+    expect(sessionTargetPace(intervals)).toBe(270)
+  })
+
+  it('is null when a structured session omits the pace (decision 17)', () => {
+    const noPace: Session = { type: 'tempo', reps: 1, tempoMeters: 5000, recovery: 'jog' }
+    expect(sessionTargetPace(noPace)).toBeNull()
   })
 })
 

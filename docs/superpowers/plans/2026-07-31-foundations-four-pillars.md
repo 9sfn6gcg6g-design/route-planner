@@ -109,16 +109,19 @@ dependencies. No network in tests.
       rests on the mechanical extraction + build.
 
 ### Slice 2 — Push logic into tested `.ts` modules (PR)
-- [ ] `src/app/planner/run-state.ts`: pure run-state type + reducer; add
+- [x] `src/app/planner/run-state.ts`: pure run-state type + reducer; added
       `run-state.test.ts` covering each transition. Hook `use-route-search.ts`
-      dispatches into it and calls `planRoute`.
-- [ ] `src/lib/planner/<default-elevation-sampler>.ts`: build the
+      dispatches into it and calls `planRoute` behind injected deps.
+- [x] `src/lib/planner/default-elevation-sampler.ts`: builds the
       terrarium→open-elevation→open-meteo failover sampler here (moved out of
-      the component); colocated test asserts order with injected fakes.
-- [ ] `src/lib/results/<gpx-download>.ts`: pure builder → `{ fileName, mime,
-      contents }` from `(session, segment)`; colocated test. Component only does
-      Blob + anchor.
-- [ ] `planner/index.tsx` shrinks to composition; lint/typecheck/test green.
+      the component); colocated test asserts the order with injected fakes, no
+      network.
+- [x] `src/lib/results/gpx-download.ts`: pure `buildGpxDownload(session, points)`
+      → `{ fileName, mimeType, contents }`; colocated test. Component only does
+      Blob + anchor. `sessionTargetPace` also moved into `results/format.ts`
+      (tested) as the shared pace selector.
+- [x] `planner/index.tsx` shrinks to composition (~70 lines); lint/typecheck
+      /test (244) green + `next build` prerenders.
 
 ### Slice 3 — Pillar seams + architecture note (PR)
 - [ ] Add pillar barrels: `session-input/index.ts`, `planner/index.ts`,
