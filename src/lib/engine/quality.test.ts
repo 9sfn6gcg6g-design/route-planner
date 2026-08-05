@@ -9,6 +9,8 @@ describe('quality seam', () => {
       gradientPercent: 0,
       wantsClimb: false,
       crossings: 0,
+      lengthMeters: 1000,
+      conversationalTargetMeters: null,
     })
     expect(q).toBeGreaterThanOrEqual(0)
     expect(q).toBeLessThanOrEqual(1)
