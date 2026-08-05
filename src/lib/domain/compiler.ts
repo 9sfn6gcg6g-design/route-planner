@@ -34,7 +34,7 @@ function assertValidReps(reps: number): void {
   }
 }
 
-/** Target pace is optional (decision 17); when present it must be finite and positive. */
+/** Target pace is optional (decision 22); when present it must be finite and positive. */
 function assertValidPace(paceSecondsPerKm: number | undefined): void {
   if (paceSecondsPerKm === undefined) return
   assertFinitePositive(paceSecondsPerKm, 'targetPaceSecondsPerKm')
