@@ -9,8 +9,10 @@ import { compileSession } from '@/lib/domain/compiler'
 import { buildGraph } from '@/lib/engine/graph'
 import { findWorkSegments } from '@/lib/engine/finder'
 import type { ElevationSampler, WorkSegment } from '@/lib/engine/finder'
+import type { AssembledRoute } from '@/lib/engine/assemble'
 import type { OverpassData } from '@/lib/engine/overpass'
 import type { LatLon } from '@/lib/engine/types'
+import { assembleDoorToDoorLoop } from './assemble-loop'
 
 /**
  * Composition root for route generation: compile the session, then find the
@@ -44,6 +46,10 @@ export interface RoutePlan {
   requirements: TerrainRequirements
   /** Ranked work segments matching those demands, best first. */
   segments: WorkSegment[]
+  /** Door-to-door loop per ranked segment (decision 21), same order as
+   *  `segments`; an entry is null when its ends can't be reached on the graph,
+   *  so the UI falls back to the bare stretch. */
+  routes: Array<AssembledRoute | null>
 }
 
 /** The work phase always carries non-null requirements; guard defensively. */
@@ -74,5 +80,17 @@ export async function planRoute(
     workTargetMeters: work.targetMeters,
   })
 
-  return { plan, requirements: work.requirements, segments }
+  // Turn each ranked stretch into a runnable door-to-door loop (decision 21):
+  // connectors are quiet paths over the same graph, so nothing leaves the
+  // browser. A stretch whose ends can't be reached stays a bare stretch (null).
+  const routes = segments.map((segment) =>
+    assembleDoorToDoorLoop(
+      graph,
+      start,
+      { points: segment.points, lengthMeters: segment.lengthMeters, isCycle: segment.isCycle },
+      work.targetMeters,
+    ),
+  )
+
+  return { plan, requirements: work.requirements, segments, routes }
 }

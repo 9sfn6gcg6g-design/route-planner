@@ -1,8 +1,19 @@
 # v1: Door-to-Door Loops — Implementation Plan
 
-**Status:** proposed · **Owner:** unassigned
+**Status:** in progress · **Owner:** stuurps
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax — tick as you land each one and update this header when you claim or finish the plan (see `AGENTS.md`). **Depends on** the flow/ground plan (`…-routing-flow-and-ground-refinements.md`) — it defines and weights the **non-repetition** dimension this plan feeds — and on the v1 app stack landing on `main`.
+
+**Progress (2026-07-31):** the headline is delivered — the app now assembles and
+shows a **keyless door-to-door loop** per stretch (Slice A `route.ts` reused from
+PR #21; Slice B `planner/assemble-loop.ts`; hill recovery is the descent pass;
+loop drawn + exported + wording updated). **Deferred to follow-ups:** retiring the
+dead ORS code (`engine/plan.ts`, `connectors.ts`) — the live app path is already
+keyless (Slice A, 2nd bullet); the distance-correct **quiet-loop search** and the
+`minUninterruptedMeters: null` revisit for easy/long (Slice C — interim uses
+out-and-back passes on the best quiet stretch); the **tempo-shape** decision
+(Slice C); and **non-repetition input** + loop compactness (Slice D — the
+dimension is weighted but still reads 1).
 
 **Why this exists (end-user review of v1):** the engine and the flow ship, but the
 output is a **work stretch, not a runnable route**. Two gaps miss the founding
@@ -55,7 +66,7 @@ code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
 
 ## Slice A — Keyless connector routing on the graph
 
-- [ ] `engine/route.ts` (+ tests): shortest/quiet path between two graph nodes
+- [x] `engine/route.ts` (+ tests): shortest/quiet path between two graph nodes
       (Dijkstra/A* over `RunEdge` weights, favouring quietness). Pure; fixtures, no
       network. Snap an arbitrary `LatLon` (the door, a stretch end) to the nearest
       graph node.
@@ -67,14 +78,14 @@ code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
 
 ## Slice B — Lap-session loops (intervals / hills)
 
-- [ ] In `planner/`, assemble a continuous loop: door → connector → work stretch →
+- [x] In `planner/`, assemble a continuous loop: door → connector → work stretch →
       (laps) → connector → door, as one ordered `LatLon[]`. Honour the compiled
       phases and `connectorMeters`. Return it alongside the ranked stretches.
-- [ ] **Hill-rep structure (decision 21):** a hill lap is a sustained climb whose
+- [x] **Hill-rep structure (decision 21):** a hill lap is a sustained climb whose
       recovery is the **descent of the same climb** — assemble it as an intended
       out-and-back on the hill; **suspend non-repetition and the `back`-U-turn
       avoidance for the hill lap** (they apply to the surrounding loop, not the rep).
-- [ ] Export the assembled loop as one continuous GPX (decision 4); update the UI to
+- [x] Export the assembled loop as one continuous GPX (decision 4); update the UI to
       draw and download the **loop**, not just the stretch.
 
 ## Slice C — Distance-correct continuous loops (easy / long / tempo)
@@ -105,7 +116,7 @@ code; **no new runtime services, no API keys**. Reuse `geo.ts`, `chains.ts`,
 
 ## Slice E — Polish
 
-- [ ] Once results are real loops, revert v1 wording from "stretch" back to "route";
+- [x] Once results are real loops, revert v1 wording from "stretch" back to "route";
       show total loop distance vs target.
 - [ ] Optional: enrich the GPX with elevation (one sampler call for the final loop).
 
